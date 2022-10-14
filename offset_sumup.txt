@@ -1,0 +1,560 @@
+
+========  DYAD 3 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 2.0
+75 centile 3.0
+----- END TIMES :---
+25 centile 1.0
+50 centile 2.0
+75 centile 3.0
+
+========  DYAD 3 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -0.5
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.5
+
+========  DYAD 4 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+
+========  DYAD 4 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.75
+
+========  DYAD 5 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -2.0
+50 centile -0.5
+75 centile 0.0
+----- END TIMES :---
+25 centile -2.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 5 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 6 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 6 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 7 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+----- END TIMES :---
+25 centile 1.0
+50 centile 2.0
+75 centile 2.0
+
+========  DYAD 7 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 8 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.25
+
+========  DYAD 8 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 9 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -2.0
+50 centile -1.0
+75 centile 0.0
+----- END TIMES :---
+25 centile -2.0
+50 centile 0.0
+75 centile 0.5
+
+========  DYAD 9 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 2.0
+
+========  DYAD 10 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 1.0
+
+========  DYAD 10 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.5
+
+========  DYAD 11 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+
+========  DYAD 11 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -173.75
+50 centile -127.5
+75 centile -47.0
+----- END TIMES :---
+25 centile -174.5
+50 centile -125.5
+75 centile -46.5
+
+========  DYAD 12 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+
+========  DYAD 12 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -125.25
+50 centile -85.5
+75 centile -53.5
+----- END TIMES :---
+25 centile -125.0
+50 centile -85.0
+75 centile -54.25
+
+========  DYAD 15 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -15.25
+50 centile -13.5
+75 centile -11.75
+----- END TIMES :---
+25 centile -12.25
+50 centile -10.5
+75 centile -8.75
+
+========  DYAD 15 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+----- END TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+
+========  DYAD 16 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+----- END TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+
+========  DYAD 16 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -104.0
+50 centile -88.0
+75 centile -18.0
+----- END TIMES :---
+25 centile -104.0
+50 centile -85.0
+75 centile -18.0
+
+========  DYAD 17 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -112.0
+50 centile -56.0
+75 centile -37.0
+----- END TIMES :---
+25 centile -113.0
+50 centile -54.0
+75 centile -38.0
+
+========  DYAD 17 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -49.5
+50 centile -47.5
+75 centile -44.75
+----- END TIMES :---
+25 centile -49.25
+50 centile -47.0
+75 centile -44.75
+
+========  DYAD 18 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -72.25
+50 centile -17.5
+75 centile 37.25
+----- END TIMES :---
+25 centile -67.25
+50 centile -14.5
+75 centile 37.0
+
+========  DYAD 18 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -21.5
+50 centile -20.5
+75 centile -15.25
+----- END TIMES :---
+25 centile -21.25
+50 centile -17.5
+75 centile -7.0
+
+========  DYAD 3 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 2.0
+75 centile 3.0
+----- END TIMES :---
+25 centile 1.0
+50 centile 2.0
+75 centile 3.0
+
+========  DYAD 3 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -0.5
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.5
+
+========  DYAD 4 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+
+========  DYAD 4 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.75
+
+========  DYAD 5 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -2.0
+50 centile -0.5
+75 centile 0.0
+----- END TIMES :---
+25 centile -2.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 5 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 6 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 6 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 7 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 2.0
+----- END TIMES :---
+25 centile 1.0
+50 centile 2.0
+75 centile 2.0
+
+========  DYAD 7 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 8 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.25
+
+========  DYAD 8 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+
+========  DYAD 9 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -2.0
+50 centile -1.0
+75 centile 0.0
+----- END TIMES :---
+25 centile -2.0
+50 centile 0.0
+75 centile 0.5
+
+========  DYAD 9 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 2.0
+
+========  DYAD 10 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 1.0
+75 centile 1.0
+
+========  DYAD 10 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.5
+
+========  DYAD 11 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+
+========  DYAD 11 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -173.75
+50 centile -127.5
+75 centile -47.0
+----- END TIMES :---
+25 centile -174.5
+50 centile -125.5
+75 centile -46.5
+
+========  DYAD 12 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 0.0
+----- END TIMES :---
+25 centile 0.0
+50 centile 0.0
+75 centile 1.0
+
+========  DYAD 12 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -125.25
+50 centile -85.5
+75 centile -53.5
+----- END TIMES :---
+25 centile -125.0
+50 centile -85.0
+75 centile -54.25
+
+========  DYAD 15 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -15.25
+50 centile -13.5
+75 centile -11.75
+----- END TIMES :---
+25 centile -12.25
+50 centile -10.5
+75 centile -8.75
+
+========  DYAD 15 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+----- END TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+
+========  DYAD 16 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+----- END TIMES :---
+25 centile nan
+50 centile nan
+75 centile nan
+
+========  DYAD 16 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -104.0
+50 centile -88.0
+75 centile -18.0
+----- END TIMES :---
+25 centile -104.0
+50 centile -85.0
+75 centile -18.0
+
+========  DYAD 17 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -112.0
+50 centile -56.0
+75 centile -37.0
+----- END TIMES :---
+25 centile -113.0
+50 centile -54.0
+75 centile -38.0
+
+========  DYAD 17 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -49.5
+50 centile -47.5
+75 centile -44.75
+----- END TIMES :---
+25 centile -49.25
+50 centile -47.0
+75 centile -44.75
+
+========  DYAD 18 SESSION 1  ========
+--- BEGIN TIMES :---
+25 centile -72.25
+50 centile -17.5
+75 centile 37.25
+----- END TIMES :---
+25 centile -67.25
+50 centile -14.5
+75 centile 37.0
+
+========  DYAD 18 SESSION 2  ========
+--- BEGIN TIMES :---
+25 centile -21.5
+50 centile -20.5
+75 centile -15.25
+----- END TIMES :---
+25 centile -21.25
+50 centile -17.5
+75 centile -7.0
