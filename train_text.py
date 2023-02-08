@@ -200,16 +200,16 @@ def read_dataset(text_path):
     input_sentences = []
 
     vsn_unique = pd.unique(df_main[['SV_Tutor', 'SV_Tutee']].values.ravel('K'))
-    print(vsn_unique)
+    # print(vsn_unique)
     df_main["VSN"] = (
         df_main[["SV_Tutor", "SV_Tutee"]]
-        .apply(lambda row: int((np.sum(row.astype(str)) in vsn_unique) & (len(np.sum(row.astype(str))) > 1)) * "x", axis=1)
+        .apply(lambda row: int(np.sum(row.astype(str)) in ['SV1C', 'SV2A', 'SV3A', 'SV1D', 'SV2B', 'SV3C', 'SV1B', 'SV2C'])  * "x", axis=1)
     )
-
     pr_unique = pd.unique(df_main[['PR_Tutor', 'PR_Tutee']].values.ravel('K'))
+    # print(pr_unique)
     df_main["PR"] = (
         df_main[["PR_Tutor", "PR_Tutee"]]
-        .apply(lambda row: int((np.sum(row.astype(str)) in pr_unique) & (len(np.sum(row.astype(str))) > 1)) * "x", axis=1)
+        .apply(lambda row: int(np.sum(row.astype(str)) in ['UL', 'LP', 'LPP', 'LPA', '0', 'not sure if this is praise', 'LPB']) * "x", axis=1)
     )
 
     df_main["SD"] = (
