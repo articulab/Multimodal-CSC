@@ -20,16 +20,8 @@ from sklearn.metrics import (
     hamming_loss,
 )
 
-from train_bimodal import (
-    MultiModalDatasetRNN,
-    MultiModalDataset,
-    TextDataset,
-    read_dataset,
-    class_split,
-    AUDataset,
-)
-from models_aus_only import AUDense, AUGRU, AULSTM
-from models_novsn import BertLSTMConcat, BertClassif, BertDenseConcat, BertGRUConcat
+from train_text import TextDataset, read_dataset, class_split
+from models import BertClassif
 
 # from models_roberta_novsn import BertGRUConcat, BertClassif, BertDenseConcat, BertLSTMConcat
 # from models_roberta import BertGRUConcat, BertClassif, BertDenseConcat, BertLSTMConcat
@@ -37,10 +29,9 @@ from models_novsn import BertLSTMConcat, BertClassif, BertDenseConcat, BertGRUCo
 # from models import BertDenseBilinearFusion, BertDenseConcat, BertGRUBilinearFusion, BertGRUConcat, BertLSTMBilinearFusion, BertLSTMConcat, BertClassif, BertGRUConcatMono, BertGRUBilinearFusionMono, BertLSTMBilinearFusionMono, BertLSTMConcatMono, GRUClassif3
 
 
-device = "cuda" if cuda.is_available() else "cpu"
+device = torch.device("mps")
 
-TEXT_PATH = "./data/2016_important/2016_text_only.csv"
-AUS_PATH = "./data/2016_important/2016_aus_med_500ms.csv"
+TEXT_PATH = "merged_df_2016.csv"
 
 SEED = 12061999
 MAX_LEN = 128
@@ -113,13 +104,13 @@ if True:
 
         # Setting up the datasets and predictions
 
-        text_df, aus_df = read_dataset(TEXT_PATH, AUS_PATH)
+        text_df = read_dataset(TEXT_PATH)
         _, test_df, _ = class_split(text_df)
         model_l = [
             # BertClassif(),
             # BertDenseConcat(),
             # BertLSTMConcat(),
-            BertClassif(dropout1=0.28947651671912833)
+            BertClassif()
         ]
 
         # print(len(test_df[test_df["VSN"] == "x"]))
@@ -131,15 +122,12 @@ if True:
         model_names_l = [type(m_).__name__ for m_ in model_l]
 
         test_data_txt = TextDataset(test_df, tokenizer, MAX_LEN)
-        test_data_rnn = MultiModalDatasetRNN(test_df, aus_df, tokenizer, MAX_LEN)
-        test_data_aus = MultiModalDataset(test_df, aus_df, tokenizer, MAX_LEN)
-        test_data_aus_ol = AUDataset(test_df, aus_df, tokenizer, MAX_LEN)
 
         dataset_l = [
             # test_data_txt,
             # test_data_aus,
             # test_data_rnn,
-            test_data_rnn
+            test_data_txt
         ]
 
         prediction_dict = {}
@@ -161,7 +149,7 @@ if True:
             test_data = models_dict[type(model_).__name__]["dataset"]
             model_.load_state_dict(
                 torch.load(
-                    f"models/DistilBert_nocontext_novsn_22_07_07_14/{type(model_).__name__}"
+                    f"models/DistilBert_nocontext_6_23_02_08_15/{type(model_).__name__}"
                 )
             )
             model_.to(device)
@@ -174,46 +162,23 @@ if True:
             )
 
             with torch.no_grad():
-                if is_aus:
-                    for j, data in tqdm(enumerate(data_loader)):
-                        aus, labels = (
-                            data["aus"].to(device, dtype=torch.float),
-                            data["target"].to(device, dtype=torch.float),
-                        )
-
-                        outputs = model_(aus)
-                        sm_ = torch.nn.Softmax()
-                        final = sm_(outputs).cpu().detach().numpy()
-                        fin_targets.extend(labels.cpu().detach().numpy() > 0)
-                        fin_outputs.extend(final >= 0.5)
-                    prediction_dict[model_] = fin_outputs
-                else:
-                    if type(model_).__name__ == "BertClassif":
-                        for j, data in tqdm(enumerate(data_loader)):
-                            input_ids, attention_mask, labels = (
-                                data["ids"].to(device, dtype=torch.long),
-                                data["mask"].to(device, dtype=torch.long),
-                                data["target"].to(device, dtype=torch.float),
-                            )
-                            outputs = model_(input_ids, attention_mask)
-                            sm_ = torch.nn.Softmax()
-                            final = sm_(outputs).cpu().detach().numpy()
-                            fin_targets.extend(labels.cpu().detach().numpy() > 0)
-                            fin_outputs.extend(final >= 0.5)
-                        prediction_dict[model_] = fin_outputs
-                    else:
-                        for j, data in tqdm(enumerate(data_loader)):
-                            input_ids, attention_mask, aus, labels = (
-                                data["ids"].to(device, dtype=torch.long),
-                                data["mask"].to(device, dtype=torch.long),
-                                data["aus"].to(device, dtype=torch.float),
-                                data["target"].to(device, dtype=torch.float),
-                            )
-                            outputs = model_(input_ids, attention_mask, aus)
-                            final = torch.sigmoid(outputs).cpu().detach().numpy()
-                            fin_targets.extend(labels.cpu().detach().numpy() > 0)
-                            fin_outputs.extend(final >= 0.5)
-                        prediction_dict[model_] = fin_outputs
+                for j, data in tqdm(enumerate(data_loader)):
+                    input_ids, attention_mask, labels = (
+                        data["ids"].to(device, dtype=torch.long),
+                        data["mask"].to(device, dtype=torch.long),
+                        data["target"].to(device, dtype=torch.float),
+                    )
+                    outputs = model_(input_ids, attention_mask)
+                    fin_targets.extend(labels.cpu().detach().numpy().tolist())
+                    fin_outputs.extend((np.array(outputs.cpu().detach().numpy()) >= (1 / 3)).tolist())
+                    if j == 5:
+                        print("outputs: ")
+                        print(outputs)
+                        print("fin_outputs")
+                        print(fin_outputs)
+                        print("fin_targets")
+                        print(fin_targets)
+                prediction_dict[model_] = fin_outputs
                 val_hamming_loss = hamming_loss(fin_targets, fin_outputs)
                 val_hamming_score = hamming_score(fin_targets, fin_outputs)
 
@@ -229,8 +194,14 @@ if True:
             )
             cpu_y = cpu_y.reshape(cpu_y_hat.shape)
             results = {}
-            f_score_tot = f1_score(cpu_y, cpu_y_hat, average=None)
-            for j, c in enumerate(["PR", "SD", "QE", "None"]):  # "VSN",
+            f_score_tot_none = f1_score(cpu_y, cpu_y_hat, average=None)
+            f_score_tot_micro = f1_score(cpu_y, cpu_y_hat, average="micro")
+            f_score_tot_macro = f1_score(cpu_y, cpu_y_hat, average="macro")
+            f_score_tot_weighted = f1_score(cpu_y, cpu_y_hat, average="weighted")
+
+            class_list = ["PR", "SD", "QE", "VSN", "HD", "None"]
+
+            for j, c in enumerate(class_list):
                 print(
                     f"Total label for {c} : {np.sum(cpu_y[:, j])}, number of correct pred {np.dot(cpu_y[:, j], cpu_y_hat[:, j])}"
                 )
@@ -259,7 +230,10 @@ if True:
                 f.write("=========================\n")
                 for k_ in results.keys():
                     f.write(str(k_) + str(results[k_]) + "\n")
-                f.write("Total f1 score : {}\n".format(f_score_tot))
+                f.write("Total f1 score : {}\n".format(f_score_tot_none))
+                f.write("Total f1 score micro : {}\n".format(f_score_tot_micro))
+                f.write("Total f1 score macro : {}\n".format(f_score_tot_macro))
+                f.write("Total f1 score weighted : {}\n".format(f_score_tot_weighted))
 
 else:
     tokenizer = DistilBertTokenizer.from_pretrained("bert-base-uncased")

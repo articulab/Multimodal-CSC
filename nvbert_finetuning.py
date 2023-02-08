@@ -379,10 +379,10 @@ if __name__ == "__main__":
 
     result = tune.run(
         train_nvb,
-        num_samples=60,
-        config=config,
-        metric="score",
-        mode="max",
+        num_samples = 60,
+        config = config,
+        metric = "score",
+        mode = "max",
         scheduler=scheduler,
         resources_per_trial={"gpu": 0.25, "cpu": 4},
     )

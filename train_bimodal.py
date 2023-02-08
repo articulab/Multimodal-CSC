@@ -386,8 +386,7 @@ class MultiModalDatasetRNN(Dataset):
             & (self.action_units.session == session)
             & (self.action_units.participant == participant_id)
             & (self.action_units.timestamp >= max(0, time_start - 1.0))
-            & (self.action_units.timestamp <= min(time_start + 10.0, time_end) + 1.0)
-        ][self.aus_list]
+            & (self.action_units.
 
         aus = F.pad(
             torch.tensor(np.array(aus.values), dtype=torch.float),
@@ -563,7 +562,7 @@ class FocalLoss(nn.Module):
         self,
         gamma: float = 2.0,
         alpha: float = -1.0,
-        weight=None,
+        weight = None,
         reduction: str = "mean",
     ) -> None:
         super().__init__()
