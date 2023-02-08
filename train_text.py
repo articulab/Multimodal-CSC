@@ -109,8 +109,8 @@ class TextDataset(Dataset):
 
         session = self.utterances.iloc[idx]["Session"]
         period = self.utterances.iloc[idx]["Period"]
-        try : period = "Social" * int(period[0] == "S") + "Tutoring" * int(period[0] == "T")
-        except : period = "Preparation"
+        # try : period = "Social" * int(period[0] == "S") + "Tutoring" * int(period[0] == "T")
+        # except : period = "Preparation"
         # Depending on the situation, you can extend the list of classes. Choice was made here to rule out VSN, as at the current time, I had no Data that properly distinguishes between
         # off-task talk and VSN, the Conversational Strategy.
 
@@ -120,7 +120,7 @@ class TextDataset(Dataset):
             .apply(len)
         ).squeeze()
 
-        if True:
+        if False:
             current_text = self.utterances.iloc[idx][f"P{participant_id}"]
             context = self.utterances.iloc[idx]["Context"]
             text = (
@@ -151,12 +151,11 @@ class TextDataset(Dataset):
             add_special_tokens=True,
             max_length=self.max_len,
             padding="max_length",
-            return_token_type_ids=True,
             return_tensors="pt",
         )
 
-        ids = inputs["input_ids"]
-        mask = inputs["attention_mask"]
+        ids = inputs['input_ids']
+        mask = inputs['attention_mask']
 
         output = {
             "ids": torch.tensor(ids, dtype=torch.long),
@@ -348,7 +347,7 @@ def class_split(tot_dataframe, class_list = None):
 
     total_length = 0
     for i, class_ in enumerate(class_list):
-        label_df = df[df[class_] == "x"]
+        label_df = df[df[class_] == "x"].sample(frac = 1)
         if class_ == "None":
 
             # Here, the idea is to downsample the None class.
@@ -356,13 +355,13 @@ def class_split(tot_dataframe, class_list = None):
             current_length = len(label_df)
             total_length += current_length
             train_data = pd.concat(
-                [train_data, label_df.iloc[: int(current_length * 0.5)]]
+                [train_data, label_df.iloc[: int(current_length * 0.15)]]
             )
             test_data = pd.concat(
                 [
                     test_data,
                     label_df.iloc[
-                        int(current_length * 0.5) : int(current_length * 0.675)
+                        int(current_length * 0.15) : int(current_length * 0.175)
                     ],
                 ]
             )
@@ -370,7 +369,7 @@ def class_split(tot_dataframe, class_list = None):
                 [
                     val_data,
                     label_df.iloc[
-                        int(current_length * 0.675) : int(current_length * 0.750)
+                        int(current_length * 0.175) : int(current_length * 0.2)
                     ],
                 ]
             )
@@ -399,6 +398,7 @@ def class_split(tot_dataframe, class_list = None):
         print(
             f"{class_} : TEST {curr_test_len_} TRAIN {curr_train_len_} VAL {curr_val_len_}"
         )
+
     test_index = test_data.index
     train_index = train_data.index
     test_data = test_data[~test_index.isin(train_index)]
@@ -435,10 +435,11 @@ def train_one_epoch(epoch_index, is_text=False, is_au=False):
 
             # labels = 1 - labels
             # Zero your gradients for every batch!
-            optimizer.zero_grad()
 
             # Make predictions for this batch
             outputs = model(input_ids, attention_mask)
+
+            optimizer.zero_grad()
 
             # Compute the loss and its gradients
             loss = loss_fn(outputs, labels)
@@ -449,8 +450,8 @@ def train_one_epoch(epoch_index, is_text=False, is_au=False):
 
             # Gather data and report
             running_loss += loss.item()
-            if i % 100 == 99:
-                last_loss = running_loss / 200  # loss per batch
+            if i % 50 == 1:
+                last_loss = running_loss / 50  # loss per batch
                 print("  batch {} loss: {}".format(i + 1, last_loss))
                 running_loss = 0.0
     return last_loss
@@ -500,13 +501,13 @@ if __name__ == "__main__":
         )
 
 
-        loss_fn = FocalLoss(gamma=1, alpha=0.6988592276480736).to(device)  # alpha = .9
-        loss_fn_cpu = FocalLoss(gamma=1, alpha=0.6988592276480736).to("cpu")  # alpha = .9
-        # loss_fn = torch.nn.BCEWithLogitsLoss() #weight=weights
-        # loss_fn_cpu = torch.nn.BCEWithLogitsLoss() #weight=weights.to("cpu")
+        # loss_fn = FocalLoss(gamma=1, alpha=0.6988592276480736).to(device)  # alpha = .9
+        # loss_fn_cpu = FocalLoss(gamma=1, alpha=0.6988592276480736).to("cpu")  # alpha = .9
+        # loss_fn = torch.nn.BCELoss() #weight=weights
+        loss_fn = torch.nn.BCEWithLogitsLoss() #weight=weights.to("cpu")
 
         params = model.parameters()
-        optimizer = torch.optim.Adam(params, lr=1e-4)
+        optimizer = torch.optim.Adam(params, lr=1e-5)
 
         timestamp = pd.datetime.now().strftime("%Y%m%d_%H%M%S")
         epoch_number = 0
@@ -531,8 +532,11 @@ if __name__ == "__main__":
             model.eval()
             running_vloss = 0.0
 
+            fin_targets, fin_outputs = list(), list()
+
             with torch.no_grad():
                 for i, vdata in enumerate(val_loader):
+
                     vinput_ids, vattention_mask, vlabels = (
                         vdata["ids"].to(device, dtype=torch.long),
                         vdata["mask"].to(device, dtype=torch.long),
@@ -540,11 +544,14 @@ if __name__ == "__main__":
                     )
 
                     voutputs = model(vinput_ids, vattention_mask)
+                    fin_targets.extend(vlabels.cpu().detach().numpy().tolist())
+                    fin_outputs.extend(torch.sigmoid(voutputs).cpu().detach().numpy().tolist())
                     # vlabels = 1 - vlabels
                     vloss = loss_fn(voutputs, vlabels)
                     running_vloss += vloss
+                    final_i = i
 
-                avg_vloss = running_vloss / (i + 1)
+                avg_vloss = running_vloss / (final_i + 1)
                 print("LOSS train {} valid {}".format(avg_loss, avg_vloss))
 
                 # Track best performance, and save the model's state

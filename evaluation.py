@@ -149,7 +149,7 @@ if True:
             test_data = models_dict[type(model_).__name__]["dataset"]
             model_.load_state_dict(
                 torch.load(
-                    f"models/DistilBert_nocontext_6_23_01_30_14/{type(model_).__name__}"
+                    f"models/DistilBert_nocontext_6_23_02_08_15/{type(model_).__name__}"
                 )
             )
             model_.to(device)
@@ -169,10 +169,15 @@ if True:
                         data["target"].to(device, dtype=torch.float),
                     )
                     outputs = model_(input_ids, attention_mask)
-                    sm_ = torch.nn.Softmax()
-                    final = sm_(outputs).cpu().detach().numpy()
-                    fin_targets.extend(labels.cpu().detach().numpy() > 0)
-                    fin_outputs.extend(final >= 0.3)
+                    fin_targets.extend(labels.cpu().detach().numpy().tolist())
+                    fin_outputs.extend((np.array(outputs.cpu().detach().numpy()) >= (1 / 3)).tolist())
+                    if j == 5:
+                        print("outputs: ")
+                        print(outputs)
+                        print("fin_outputs")
+                        print(fin_outputs)
+                        print("fin_targets")
+                        print(fin_targets)
                 prediction_dict[model_] = fin_outputs
                 val_hamming_loss = hamming_loss(fin_targets, fin_outputs)
                 val_hamming_score = hamming_score(fin_targets, fin_outputs)
@@ -189,7 +194,10 @@ if True:
             )
             cpu_y = cpu_y.reshape(cpu_y_hat.shape)
             results = {}
-            f_score_tot = f1_score(cpu_y, cpu_y_hat, average=None)
+            f_score_tot_none = f1_score(cpu_y, cpu_y_hat, average=None)
+            f_score_tot_micro = f1_score(cpu_y, cpu_y_hat, average="micro")
+            f_score_tot_macro = f1_score(cpu_y, cpu_y_hat, average="macro")
+            f_score_tot_weighted = f1_score(cpu_y, cpu_y_hat, average="weighted")
 
             class_list = ["PR", "SD", "QE", "VSN", "HD", "None"]
 
@@ -222,7 +230,10 @@ if True:
                 f.write("=========================\n")
                 for k_ in results.keys():
                     f.write(str(k_) + str(results[k_]) + "\n")
-                f.write("Total f1 score : {}\n".format(f_score_tot))
+                f.write("Total f1 score : {}\n".format(f_score_tot_none))
+                f.write("Total f1 score micro : {}\n".format(f_score_tot_micro))
+                f.write("Total f1 score macro : {}\n".format(f_score_tot_macro))
+                f.write("Total f1 score weighted : {}\n".format(f_score_tot_weighted))
 
 else:
     tokenizer = DistilBertTokenizer.from_pretrained("bert-base-uncased")
