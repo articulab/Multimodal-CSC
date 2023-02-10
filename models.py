@@ -633,7 +633,7 @@ class BertClassif(torch.nn.Module):
         self.dropout = torch.nn.Dropout(0.25)
         self.class_num = 5
         # Define the classifier
-        self.classifier = torch.nn.Linear(768, 5)
+        self.classifier = torch.nn.Linear(768, 6)
 
     def forward(self, input_ids, attention_mask):
 

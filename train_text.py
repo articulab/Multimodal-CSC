@@ -305,7 +305,6 @@ def read_dataset(text_path):
             "HD_Tutee"
         ]
     )
-    df_main.to_csv("firsttry.csv")
     return df_main
 
 
