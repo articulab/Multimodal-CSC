@@ -20,22 +20,14 @@ def merger(path_full, path_vsn, dyad, session):
     full['Time_begin'] = full['Time_begin'].apply(time_parser).dt.round(freq='100L')
     full['Time_end'] = full['Time_end'].apply(time_parser).dt.round(freq='100L')
 
-    print(dyad, session)
-    print(full["SD_Tutor"].unique())
-    print(full["SD_Tutee"].unique())
-    print(full["PR_Tutor"].unique())
-    print(full["PR_Tutee"].unique())
-
     samp = full.loc[(full.Dyad==dyad) & (full.Session==session)]
 
-    print(dyad, session)
-    print(len(samp))
-    print(samp["SD_Tutor"].unique())
-    print(samp["SD_Tutee"].unique())
-    print(samp["PR_Tutor"].unique())
-    print(samp["PR_Tutee"].unique())
-
     vsn = pd.read_csv(path_vsn)
+    if (path_vsn[-7] == '6' and path_vsn[-5] == '1') or (path_vsn[-7] == '8' and path_vsn[-5] == '2'):
+        print("HEY FOUND THIS MISTAKE\n")
+        print(path_vsn)
+        vsn.loc[:, ["P1", "P2"]] = vsn.loc[:, ["P2", "P1"]].values
+
     vsn['Begin Time - hh:mm:ss.ms'] = pd.to_datetime(vsn['Begin Time - hh:mm:ss.ms'], format='%H:%M:%S.%f').dt.round(freq='100L')
     vsn['End Time - hh:mm:ss.ms'] = pd.to_datetime(vsn['End Time - hh:mm:ss.ms'], format='%H:%M:%S.%f').dt.round(freq='100L')
     vsn['Duration - hh:mm:ss.ms'] = pd.to_datetime(vsn['Duration - hh:mm:ss.ms'], format='%H:%M:%S.%f').dt.round(freq='100L')
@@ -133,10 +125,11 @@ def merger(path_full, path_vsn, dyad, session):
     return fin
 
 def find_DS(vsn):
+    # Returns Dyad, Session
     return int(vsn.split('_')[-1].split('D')[-1].split('S')[0]), int(vsn.split('_')[-1].split('S')[-1].split('.')[0])
 
 def vsn_files_and_DS(dir):
-    return [(f"{dir}/{vsn}",find_DS(vsn)) for vsn in os.listdir(dir) if vsn[-3:]=='csv'] 
+    return [(f"{dir}/{vsn}", find_DS(vsn)) for vsn in os.listdir(dir) if vsn[-3:] == 'csv'] 
 
 def dir_merger(full_behav, dir):
 
