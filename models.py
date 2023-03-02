@@ -6,6 +6,7 @@ from torch import cuda
 import transformers
 from transformers import BertModel, DistilBertTokenizer, DistilBertModel
 from transformers import logging
+from torch.nn.utils.rnn import pack_padded_sequence as PACK
 
 logging.set_verbosity_warning()
 logging.set_verbosity_error()
@@ -732,3 +733,99 @@ class GRUClassif3(torch.nn.Module):
         )
 
         return output_t, output_au, output_mul
+
+
+# ----------- UNIMODAL CLASSIFIERS
+
+
+class AudioGRU(torch.nn.Module):
+    """
+    24 OPENSMILE FEATURES
+    This model is a bi-modal classifier using a bilinear fusion layer for the two modalities.
+    Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
+    """
+
+    def __init__(
+        self, dropout1: float = 0.110051, gru_layers: int = 2,
+    ):
+        super(AudioGRU, self).__init__()
+
+        self.dropout = torch.nn.Dropout(dropout1)
+        self.class_num = 6
+        # Define the AUs pipeline
+        self.gru = torch.nn.GRU(
+            input_size = 24,
+            hidden_size = 128,
+            num_layers = gru_layers,
+            bidirectional = True,
+            batch_first = True,
+        ) 
+        self.ReLU = torch.nn.LeakyReLU(.1)
+        self.sigmoid = torch.nn.Sigmoid()
+
+
+        # Define the dense layer and the classifier
+        self.fc1 = torch.nn.Linear(256, 128)
+        self.classifier = torch.nn.Linear(128, 6)
+
+    def forward(self, batch):
+        audio_features, audio_feature_lengths, _ = batch
+        x_pack = PACK(audio_features, audio_feature_lengths, batch_first=True)
+
+        output, hidden = self.gru(x_pack)
+
+        output = self.ReLU(output)
+
+        output = self.ReLU(self.fc1(output))
+
+
+        # Classification of the fusion
+        result = self.sigmoid(self.classifier(output))
+
+        return result
+
+
+class VideoGRU(torch.nn.Module):
+    """
+    24 OPENSMILE FEATURES
+    This model is a bi-modal classifier using a bilinear fusion layer for the two modalities.
+    Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
+    """
+
+    def __init__(
+        self, dropout1: float = 0.110051, gru_layers: int = 2,
+    ):
+        super(BertGRUConcat, self).__init__()
+
+        self.dropout = torch.nn.Dropout(dropout1)
+        self.class_num = 6
+        # Define the AUs pipeline
+        self.gru = torch.nn.GRU(
+            input_size = 17,
+            hidden_size = 128,
+            num_layers = gru_layers,
+            bidirectional = True,
+            batch_first = True,
+        ) 
+        self.ReLU = torch.nn.LeakyReLU(.1)
+        self.sigmoid = torch.nn.Sigmoid()
+
+
+        # Define the dense layer and the classifier
+        self.fc1 = torch.nn.Linear(256, 128)
+        self.classifier = torch.nn.Linear(128, 6)
+
+    def forward(self, batch):
+        audio_features, audio_feature_lengths, _ = batch
+        x_pack = PACK(audio_features, audio_feature_lengths, batch_first=True)
+
+        output, hidden = self.gru(x_pack)
+
+        output = self.ReLU(output)
+
+        output = self.ReLU(self.fc1(output))
+
+        # Classification of the fusion
+        result = self.sigmoid(self.classifier(output))
+
+        return result
