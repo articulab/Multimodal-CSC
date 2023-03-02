@@ -307,6 +307,7 @@ if __name__ == "__main__":
 
     now = datetime.datetime.now().strftime(r"%y_%m_%d_%H")
     audio_df = pd.read_csv("audio_features_test.csv")
+    audio_df = pd.read_csv("audio_video_features_test.csv")
     model_l = [
         models.AudioGRU(),
     ]
