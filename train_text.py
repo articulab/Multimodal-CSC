@@ -173,7 +173,7 @@ class TextDataset(Dataset):
         return output
 
 
-def read_dataset(text_path):
+def read_dataset(text_path, feather = False):
     """Using the path to the text-transcript and extracted AUs, returns properly formatted dataframes for the approach I chose here. This is not a mandatory choice, just mine.
 
     Args:
@@ -185,8 +185,10 @@ def read_dataset(text_path):
     """
 
     # The following dyads were ruled out based on the analysis dit by Aishik and Ewen on June of 2022 -> alignement problems. Currently the alignement is being worked on.
-
-    df_main = pd.read_csv(text_path)
+    if feather:
+        df_main = pd.read_feather(text_path)
+    else:
+        df_main = pd.read_csv(text_path)
     df_main = df_main[(df_main["Dyad"].isin([3,4,5,6,7,8,10]))].replace(pd.NA, "").replace("SV1A", "").replace(np.nan, "")
     df_main = df_main.rename(columns = {"SV2_P1" : "SV_Tutor", "SV2_P2" : "SV_Tutee"})
 
