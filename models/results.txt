@@ -1,0 +1,203 @@
+
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+QE{'Recall': '0.0484', 'Precision': '1.0000', 'Accuracy': '0.85'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '0.6096', 'Precision': '0.6595', 'Accuracy': '0.55'}
+Total f1 score : [0.         0.09230769 0.         0.         0.         0.63354037]
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.84'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '1.0000', 'Precision': '0.6371', 'Accuracy': '0.64'}
+Total f1 score : [0.         0.         0.         0.         0.         0.77829457]
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '1.00'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '1.00'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+None{'Recall': '1.0000', 'Precision': '0.9271', 'Accuracy': '0.93'}
+Total f1 score : [0.         0.         0.         0.         0.         0.96217105]
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '1.00'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '1.00'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+None{'Recall': '1.0000', 'Precision': '0.9305', 'Accuracy': '0.93'}
+Total f1 score : [0.         0.         0.         0.         0.         0.96402087]
+Total f1 score micro : 0.9300476947535772
+Total f1 score macro : 0.1606701455644054
+Total f1 score weighted : 0.8961105046574093
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.35'}
+Total f1 score : [0. 0. 0. 0. 0. 0.]
+Total f1 score micro : 0.0
+Total f1 score macro : 0.0
+Total f1 score weighted : 0.0
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.84'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.86'}
+None{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.35'}
+Total f1 score : [0. 0. 0. 0. 0. 0.]
+Total f1 score micro : 0.0
+Total f1 score macro : 0.0
+Total f1 score weighted : 0.0
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '1.0000', 'Precision': '0.1538', 'Accuracy': '0.15'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.36'}
+Total f1 score : [0.         0.26666667 0.         0.         0.         0.        ]
+Total f1 score micro : 0.15286624203821655
+Total f1 score macro : 0.04444444444444445
+Total f1 score weighted : 0.04050632911392406
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.86'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '1.0000', 'Precision': '0.6452', 'Accuracy': '0.65'}
+Total f1 score : [0.       0.       0.       0.       0.       0.784375]
+Total f1 score micro : 0.6427656850192062
+Total f1 score macro : 0.13072916666666667
+Total f1 score weighted : 0.5022401147959183
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+None{'Recall': '1.0000', 'Precision': '0.6503', 'Accuracy': '0.65'}
+Total f1 score : [0.         0.         0.         0.         0.         0.78806907]
+Total f1 score micro : 0.648578811369509
+Total f1 score macro : 0.1313448456305599
+Total f1 score weighted : 0.5098075709268639
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '1.0000', 'Precision': '0.0230', 'Accuracy': '0.02'}
+SD{'Recall': '1.0000', 'Precision': '0.1531', 'Accuracy': '0.15'}
+QE{'Recall': '1.0000', 'Precision': '0.0306', 'Accuracy': '0.03'}
+VSN{'Recall': '1.0000', 'Precision': '0.0128', 'Accuracy': '0.01'}
+HD{'Recall': '1.0000', 'Precision': '0.1480', 'Accuracy': '0.15'}
+None{'Recall': '1.0000', 'Precision': '0.6403', 'Accuracy': '0.64'}
+Total f1 score : [0.04488778 0.26548673 0.05940594 0.02518892 0.25777778 0.7807154 ]
+Total f1 score micro : 0.2875864579541318
+Total f1 score macro : 0.2389104230065491
+Total f1 score weighted : 0.5774245192116365
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.85'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '1.0000', 'Precision': '0.1443', 'Accuracy': '0.14'}
+None{'Recall': '1.0000', 'Precision': '0.6469', 'Accuracy': '0.65'}
+Total f1 score : [0.         0.         0.         0.         0.25225225 0.7856025 ]
+Total f1 score micro : 0.5265866209262435
+Total f1 score macro : 0.17297579269410257
+Total f1 score weighted : 0.5418265502772546
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '1.0000', 'Precision': '0.0221', 'Accuracy': '0.09'}
+SD{'Recall': '1.0000', 'Precision': '0.1534', 'Accuracy': '0.18'}
+QE{'Recall': '0.7500', 'Precision': '0.0326', 'Accuracy': '0.31'}
+VSN{'Recall': '1.0000', 'Precision': '0.0132', 'Accuracy': '0.04'}
+HD{'Recall': '0.9825', 'Precision': '0.1458', 'Accuracy': '0.16'}
+None{'Recall': '1.0000', 'Precision': '0.6436', 'Accuracy': '0.64'}
+Total f1 score : [0.04324324 0.26605505 0.0625     0.02597403 0.25396825 0.78315133]
+Total f1 score micro : 0.3022256930886372
+Total f1 score macro : 0.23914864918502085
+Total f1 score weighted : 0.5823636369613059
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.5000', 'Precision': '0.6327', 'Accuracy': '0.87'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.4138', 'Precision': '0.6857', 'Accuracy': '0.88'}
+None{'Recall': '0.7490', 'Precision': '0.8545', 'Accuracy': '0.76'}
+Total f1 score : [0.         0.55855856 0.         0.         0.51612903 0.79830149]
+Total f1 score micro : 0.6942857142857143
+Total f1 score macro : 0.3121648461693664
+Total f1 score weighted : 0.6690398675194238
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.6949', 'Precision': '0.4713', 'Accuracy': '0.83'}
+QE{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.97'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.7679', 'Precision': '0.6232', 'Accuracy': '0.90'}
+None{'Recall': '0.8406', 'Precision': '0.7786', 'Accuracy': '0.74'}
+Total f1 score : [0.         0.56164384 0.         0.         0.688      0.80842912]
+Total f1 score micro : 0.7203907203907204
+Total f1 score macro : 0.34301215906506416
+Total f1 score weighted : 0.7004609569225266
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.1250', 'Precision': '1.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.6984', 'Precision': '0.6875', 'Accuracy': '0.90'}
+QE{'Recall': '0.7500', 'Precision': '0.8182', 'Accuracy': '0.99'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.5000', 'Precision': '0.6087', 'Accuracy': '0.88'}
+None{'Recall': '0.9323', 'Precision': '0.7774', 'Accuracy': '0.78'}
+Total f1 score : [0.22222222 0.69291339 0.7826087  0.         0.54901961 0.84782609]
+Total f1 score micro : 0.7726161369193154
+Total f1 score macro : 0.5157649997501378
+Total f1 score weighted : 0.7553723323999826
+=========================
+EVALUATING BertClassif
+=========================
+PR{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.98'}
+SD{'Recall': '0.5645', 'Precision': '0.8140', 'Accuracy': '0.91'}
+QE{'Recall': '0.5833', 'Precision': '0.6364', 'Accuracy': '0.98'}
+VSN{'Recall': '0.0000', 'Precision': '0.0000', 'Accuracy': '0.99'}
+HD{'Recall': '0.1228', 'Precision': '0.7778', 'Accuracy': '0.87'}
+None{'Recall': '0.8725', 'Precision': '0.8521', 'Accuracy': '0.82'}
+Total f1 score : [0.         0.66666667 0.60869565 0.         0.21212121 0.86220472]
+Total f1 score micro : 0.7507002801120449
+Total f1 score macro : 0.3916147092285401
+Total f1 score weighted : 0.7034060306525407
+
+
+SIGMOID AND NOT SOFTMAX
