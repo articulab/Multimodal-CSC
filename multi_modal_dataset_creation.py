@@ -180,7 +180,7 @@ def hhmmssms_to_s(ts):
     s_count = int(ms) / 1000 + int(s) + 60 * (int(m) + 60 * int(h))
     return myround(s_count)
 
-def merge_modalities(main_df_dir = "final_data_handmatched_2016.csv", audio_time_window = 12, video_time_window = 12):
+def merge_modalities(main_df_dir = "FUZZY_MATCH_CORRECTED_2016.csv", audio_time_window = 12, video_time_window = 12):
     """
     Given the main dataframe containing "Dyad", "Session", "P1", "P2", "Begin_time", "End_time", and categories to label, will add the openface and opensmile features to each line (heavy)
 

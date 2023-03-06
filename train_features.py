@@ -2,6 +2,7 @@ from time import time
 from torch.utils.data import Dataset
 import pandas as pd
 import numpy as np
+import itertools
 
 import warnings
 
@@ -115,13 +116,26 @@ class AudioVideoDataset(Dataset):
             audio_features += [f_ + str(i) for f_ in audio_features_list]
             video_features += [f_ + str(i) for f_ in video_features_list]
 
+        self.audio_features_list = audio_features_list
+        self.video_features_list = video_features_list
+
         if type == "audio":
-            self.df = df[["Dyad","Session","Begin_time","End_time","Duration","P1","P2","SD","QE","SV","PR","HD"] + audio_features].replace("", pd.NA)
+            df = df.dropna(subset=audio_features, how = "all")
+            self.df = df[["Dyad","Session","Begin_time","End_time","Duration","P1","P2","SD","QE","SV","PR","HD", "None"] + audio_features].replace("", pd.NA)
         else:
-            self.df = df[["Dyad","Session","Begin_time","End_time","Duration","P1","P2","SD","QE","SV","PR","HD"] + video_features].replace("", pd.NA)
+            df = df.dropna(subset=video_features, how = "all")
+            self.df = df[["Dyad","Session","Begin_time","End_time","Duration","P1","P2","SD","QE","SV","PR","HD", "None"] + video_features].replace("", pd.NA)
+
+        self.df
 
     def __len__(self):
         return len(self.df)
+
+    def get_audio_feature(self, i):
+        return [f_ + str(i) for f_ in self.audio_features_list]
+
+    def get_video_feature(self, i):
+        return [f_ + str(i) for f_ in self.video_features_list]
 
     def __getitem__(self, idx):
         """
@@ -135,15 +149,38 @@ class AudioVideoDataset(Dataset):
         df = self.df
         if torch.is_tensor(idx):
             idx = idx.tolist()
+        if type(idx) == int:
+            idx = [idx]
 
         end_time = df["Duration"].apply(self.get_duration).values
-        frame_number = max(1, int(2 * end_time))
 
-        feature_list = list(df.columns)[- (frame_number * 22): - 17 * 24]
-        features = df[idx][feature_list].values.reshape(-1, 24)
+        frame_number = np.maximum(np.ones(len(end_time)), 2 * end_time).astype(int)
+        feature_list = [list(itertools.chain.from_iterable([self.get_audio_feature(23 - i) for i in range(max(f_num, 24))])) for f_num in frame_number]
 
+        features = list()
+
+        for f_ in feature_list:
+            # zeros = torch.zeros(24, 22)
+            # print(df.loc[idx, f_].values.reshape(-1, 22).dtype)
+            try:feature_list = torch.from_numpy(df.loc[idx, f_].values.reshape(-1, 22).astype(np.float16))
+            except: 
+                print(frame_number)
+                return True
+                # print(f_)
+                # print(df.loc[idx, f_])
+            # features[df.loc[idx, feats_].values.reshape(-1, 22).squeeze() for feats_ in feature_list]
+
+        feature_list = torch.tensor(feature_list)
+
+        # 1. Do right padding 
+        # 2. Pad to the max length of the batch
+        # 3. Keep the original length as a 1D array and put it in the batch
+        # 4. Select the (length)th hidden state of the GRU
+        feature_list = torch.nn.utils.rnn.pad_sequence(feature_list, batch_first = False, padding_value = 0.0)
+
+        # Keep the sub-categories of SV, PR, HD
         y = torch.Tensor(
-            self.utterances.iloc[idx][["SD", "QE", "SV", "PR", "HD"]]
+            self.df.iloc[idx][["SD", "QE", "SV", "PR", "HD", "None"]]
             .fillna("")
             .apply(len)
         ).squeeze().type(torch.LongTensor)
@@ -197,7 +234,7 @@ def class_split(tot_dataframe, class_list = None):
         if class_ == "None":
 
             # Here, the idea is to downsample the None class.
-
+            # Try without downsampling the none class and use the weight in BCE or FocalLoss
             current_length = len(label_df)
             total_length += current_length
             train_data = pd.concat(
@@ -306,7 +343,7 @@ if __name__ == "__main__":
     import datetime
 
     now = datetime.datetime.now().strftime(r"%y_%m_%d_%H")
-    audio_df = pd.read_csv("audio_video_features_test.csv")
+    audio_df = pd.read_csv("audio_features_test.csv")
     model_l = [
         models.AudioGRU(),
     ]
@@ -331,9 +368,9 @@ if __name__ == "__main__":
         )
 
         train_loader, test_loader, val_loader = (
-            DataLoader(train_data, batch_size=8, shuffle=True, num_workers=8),
-            DataLoader(test_data, batch_size=8, shuffle=True, num_workers=8),
-            DataLoader(val_data, batch_size=8, shuffle=True, num_workers=8),
+            DataLoader(train_data, batch_size=4, shuffle=True, num_workers=8),
+            DataLoader(test_data, batch_size=4, shuffle=True, num_workers=8),
+            DataLoader(val_data, batch_size=4, shuffle=True, num_workers=8),
         )
 
 
@@ -371,13 +408,13 @@ if __name__ == "__main__":
 
             with torch.no_grad():
                 for i, vdata in enumerate(val_loader):
-                    print(model_(vdata))
-                    break
-                    vinput_ids, vattention_mask, vlabels = (
-                        vdata["ids"].to(device, dtype=torch.long),
-                        vdata["mask"].to(device, dtype=torch.long),
+                    vfeatures, vlength, vlabels = (
+                        vdata["features"].to(device, dtype=torch.long),
+                        vdata["sequence_lengths"].to(device, dtype=torch.long),
                         vdata["target"].to(device, dtype=torch.float),
                     )
+                    print(model_(vdata))
+                    break
 
                     voutputs = model(vinput_ids, vattention_mask)
                     fin_targets.extend(vlabels.cpu().detach().numpy().tolist())

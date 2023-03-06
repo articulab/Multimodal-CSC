@@ -800,6 +800,9 @@ class VideoGRU(torch.nn.Module):
         self.dropout = torch.nn.Dropout(dropout1)
         self.class_num = 6
         # Define the AUs pipeline
+
+        # Look at :
+        # 1. 
         self.gru = torch.nn.GRU(
             input_size = 17,
             hidden_size = 128,
@@ -813,7 +816,9 @@ class VideoGRU(torch.nn.Module):
 
         # Define the dense layer and the classifier
         self.fc1 = torch.nn.Linear(256, 128)
-        self.classifier = torch.nn.Linear(128, 6)
+
+        # Do not make a class for the "None" class
+        self.classifier = torch.nn.Linear(128, 5) # 6
 
     def forward(self, batch):
         audio_features, audio_feature_lengths, _ = batch
