@@ -7,6 +7,7 @@ from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
+from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence
 
 ## -- paths -- ##
 paths = {
@@ -72,7 +73,7 @@ class DataHolder():
         self.opensmile_spk_1_dict = filter_dict(opensmile_spk_1_dict)
         self.opensmile_spk_2_dict = filter_dict(opensmile_spk_2_dict)
 
-        self._filter_embeds_according_to_dicts()
+        self._find_unused_index()
 
         #create useful params
         self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
@@ -80,14 +81,13 @@ class DataHolder():
         self.opensmile_col = self.opensmile_spk_1.iloc[:,3:].columns
         self.class_weights = self.embeds[self.target_col].sum() / self.embeds.shape[0]
 
-    def _filter_embeds_according_to_dicts(self):
+    def _find_unused_index(self):
         """We need to remove the index of embeds that are not present in all dicts"""
         a = set( self.openface_spk_1_dict.keys() )
         b = set( self.openface_spk_2_dict.keys() )
         c = set( self.opensmile_spk_1_dict.keys() )
         d = set( self.opensmile_spk_2_dict.keys() )
-        indexes = (a.union(b)).intersection(c.union((d)))
-        self.embeds = self.embeds.loc[self.embeds.index.isin([int(i) for i in indexes])]
+        self._unused_index = pd.Index(set(self.embeds.index).difference(set(int(i) for i in (a.union(b)).intersection(c.union((d))))))
         return None
 
     def _filter_indexes_before_stratify(self, df):
@@ -107,7 +107,7 @@ class DataHolder():
         target_index = embeds_col.loc[embeds_col.sum(axis=1)>0].index
         #none indexes
         none_index = embeds_col.index.difference(target_index)
-        selected_none_index = embeds_col.loc[none_index].sample(none_count).index
+        selected_none_index = embeds_col.loc[none_index.difference(self._unused_index)].sample(none_count).index
         #find unique annoying rare combinations of features - they will be put in test
         annoying_indexes = self._filter_indexes_before_stratify(embeds_col.loc[target_index])
         #constitute df to stratify
