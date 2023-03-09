@@ -25,7 +25,7 @@ paths = {
 
 def filter_dict(dic:dict, max_len=30)->dict:
     """Filters on 0<len(value)<max_len"""
-    return {key:value for (key,value) in dic.items() if len(value) in range(1,max_len)}
+    return {key:value for (key,value) in dic.items() if len(value) in range(1,max_len)} # can be changed (key cond etc)
 
 def retrieve_frames(df, row):
     """Enables the creation of a dict similar to the ones used latter"""
@@ -165,11 +165,11 @@ class DataHolder():
         output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
 
         if val_size :
-            train, val = train_test_split(train, test_size=val_size, stratify=train)
+            train, valid = train_test_split(train, test_size=val_size, stratify=train)
             
             output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
             output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
-            return output
+            return {'data' : output, 'class_weights':class_weights}
         
         output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
         return {'data' : output, 'class_weights':class_weights}
@@ -212,7 +212,7 @@ class dicDataset(Dataset):
         return features, self.t[int(idx),:], len(features_indexes)
 
     def get_valid(self):
-        if not valid_dic:
+        if not self.valid_dic:
             print('No valid data')
             raise
         return pad_collate([self._get_valid_item(idx) for idx in self.valid_dic.keys()])
