@@ -6,7 +6,7 @@ from torch import cuda
 import transformers
 from transformers import BertModel, DistilBertTokenizer, DistilBertModel
 from transformers import logging
-from torch.nn.utils.rnn import pack_padded_sequence
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 logging.set_verbosity_warning()
 logging.set_verbosity_error()
@@ -790,21 +790,19 @@ class VideoGRU(torch.nn.Module):
     Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
     """
 
-    def __init__(
-        self, dropout1: float = 0.110051, gru_layers: int = 2,
-    ):
+    def __init__(self, input_dim=17, hidden_dim=8, hidden_dim2=20, layer_dim=3, output_dim=5, dropout_prob=.1):
         super(VideoGRU, self).__init__()
 
-        self.dropout = torch.nn.Dropout(dropout1)
+        self.dropout = torch.nn.Dropout(dropout_prob)
         self.class_num = 6
         # Define the AUs pipeline
 
         # Look at :
         # 1. 
         self.gru = torch.nn.GRU(
-            input_size = 17,
-            hidden_size = 128,
-            num_layers = gru_layers,
+            input_size = input_dim,
+            hidden_size = hidden_dim,
+            num_layers = layer_dim,
             bidirectional = True,
             batch_first = True,
         ) 
@@ -813,21 +811,21 @@ class VideoGRU(torch.nn.Module):
 
 
         # Define the dense layer and the classifier
-        self.fc1 = torch.nn.Linear(256, 128)
+        self.fc1 = torch.nn.Linear(hidden_dim * 2, hidden_dim2)
 
         # Do not make a class for the "None" class
-        self.classifier = torch.nn.Linear(128, 5) # 6
+        self.classifier = torch.nn.Linear(hidden_dim2, output_dim) # 6
 
-    def forward(self, batch):
-        audio_features, audio_feature_lengths, _ = batch
+    def forward(self, x_packed):
+        x, hidden = self.gru(x_packed)
 
-        output, hidden = self.gru(audio_features)
+        x,l = pad_packed_sequence(x, batch_first=True)
 
-        output = self.ReLU(output)
+        out = torch.stack([x[i][l[i]-1] for i in range(x.shape[0])])
 
-        output = self.ReLU(self.fc1(output))
+        out = self.fc1(out)
+        out = self.ReLU(out)
 
-        # Classification of the fusion
-        result = self.sigmoid(self.classifier(output))
+        out = self.classifier(out)
 
-        return result
+        return out
