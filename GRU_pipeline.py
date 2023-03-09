@@ -124,7 +124,7 @@ class DataHolder():
         return {
             'train':train.index,
             'test':test.index.union(annoying_indexes),
-            'class_weights':class_weights}
+            'class_weights':torch.Tensor(class_weights.values)}
 
 #create dataset from dict, features_data, and targets_data
 class dicDataset(Dataset):
@@ -147,6 +147,9 @@ class dicDataset(Dataset):
         features = self.f[features_indexes, :]
         targets = self.t[self.keys[idx],:]
         return features, targets, len(features_indexes)
+
+    def get_all(self):
+        return pad_collate([self.__getitem__(idx) for idx in range(self.__len__())])
 
 def pad_collate(batch):
     """Pads and packs a batch of items from dicDataset"""
