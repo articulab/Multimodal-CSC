@@ -12,15 +12,15 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence, pad_packed_se
 
 ## -- paths -- ##
 paths = {
-    'path_to_embeds'            : "data/final/text/embeds",
-    'openface_spk_1_path'       : "data/final/openface/openface_speaker_1_05_by_05",
-    'openface_spk_2_path'       : "data/final/openface/openface_speaker_2_05_by_05",
-    'openface_spk_1_dict_path'  : "data/final/openface/openface_speaker_1_dict_utt_to_frame.txt",
-    'openface_spk_2_dict_path'  : "data/final/openface/openface_speaker_2_dict_utt_to_frame.txt",
-    'opensmile_spk_1_path'      : "data/final/opensmile/opensmile_speaker_1_05_by_05",
-    'opensmile_spk_2_path'      : "data/final/opensmile/opensmile_speaker_2_05_by_05",
-    'opensmile_spk_1_dict_path' : "data/final/opensmile/opensmile_speaker_1_dict_utt_to_frame.txt",
-    'opensmile_spk_2_dict_path' : "data/final/opensmile/opensmile_speaker_2_dict_utt_to_frame.txt"
+    'path_to_embeds'            : "data/recurrent_data/embeds",
+    'openface_spk_1_path'       : "data/recurrent_data/openface_speaker_1_05_by_05",
+    'openface_spk_2_path'       : "data/recurrent_data/openface_speaker_2_05_by_05",
+    'openface_spk_1_dict_path'  : "data/recurrent_data/openface_speaker_1_dict_utt_to_frame.txt",
+    'openface_spk_2_dict_path'  : "data/recurrent_data/openface_speaker_2_dict_utt_to_frame.txt",
+    'opensmile_spk_1_path'      : "data/recurrent_data/opensmile_speaker_1_05_by_05",
+    'opensmile_spk_2_path'      : "data/recurrent_data/opensmile_speaker_2_05_by_05",
+    'opensmile_spk_1_dict_path' : "data/recurrent_data/opensmile_speaker_1_dict_utt_to_frame.txt",
+    'opensmile_spk_2_dict_path' : "data/recurrent_data/opensmile_speaker_2_dict_utt_to_frame.txt"
 }
 
 def filter_dict(dic:dict, max_len=30)->dict:
@@ -138,7 +138,7 @@ class DataHolder():
         self._to_avoid = combinations[combinations.isin(to_avoid)].index
         return None
 
-    def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size=.3,val_size=None, none_count=300):
+    def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size = .3,val_size=None, none_count=300):
         output={
             'targets':self.target_tensor
         }
@@ -165,11 +165,12 @@ class DataHolder():
         output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
 
         if val_size :
-            train, val = train_test_split(train, test_size=val_size, stratify=train)
+            train, valid = train_test_split(train, test_size = val_size, stratify=train)
             
             output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
             output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
-            return output
+            return {'data' : output, 'class_weights':class_weights}
+
         
         output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
         return {'data' : output, 'class_weights':class_weights}
@@ -206,13 +207,16 @@ class dicDataset(Dataset):
     def get_test(self):
         return pad_collate([self._get_test_item(idx) for idx in self.test_dic.keys()])
 
+    def get_train(self):
+        return pad_collate([self.__getitem__(idx) for idx in range(self.__len__())])
+
     def _get_valid_item(self, idx):
         features_indexes = self.valid_dic[str(idx)]
         features = self.f[features_indexes, :]
         return features, self.t[int(idx),:], len(features_indexes)
 
     def get_valid(self):
-        if not valid_dic:
+        if not self.valid_dic:
             print('No valid data')
             raise
         return pad_collate([self._get_valid_item(idx) for idx in self.valid_dic.keys()])
