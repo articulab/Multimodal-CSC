@@ -6,7 +6,7 @@ from torch import cuda
 import transformers
 from transformers import BertModel, DistilBertTokenizer, DistilBertModel
 from transformers import logging
-from torch.nn.utils.rnn import pack_padded_sequence as PACK
+from torch.nn.utils.rnn import pack_padded_sequence
 
 logging.set_verbosity_warning()
 logging.set_verbosity_error()
@@ -754,7 +754,7 @@ class AudioGRU(torch.nn.Module):
         self.class_num = 6
         # Define the AUs pipeline
         self.gru = torch.nn.GRU(
-            input_size = 24,
+            input_size = 23,
             hidden_size = 128,
             num_layers = gru_layers,
             bidirectional = True,
@@ -766,13 +766,11 @@ class AudioGRU(torch.nn.Module):
 
         # Define the dense layer and the classifier
         self.fc1 = torch.nn.Linear(256, 128)
-        self.classifier = torch.nn.Linear(128, 6)
+        self.classifier = torch.nn.Linear(128, 5)
 
-    def forward(self, batch):
-        audio_features, audio_feature_lengths, _ = batch
-        x_pack = PACK(audio_features, audio_feature_lengths, batch_first=True)
+    def forward(self, audio_features):
 
-        output, hidden = self.gru(x_pack)
+        output, hidden = self.gru(audio_features)
 
         output = self.ReLU(output)
 
@@ -795,7 +793,7 @@ class VideoGRU(torch.nn.Module):
     def __init__(
         self, dropout1: float = 0.110051, gru_layers: int = 2,
     ):
-        super(BertGRUConcat, self).__init__()
+        super(VideoGRU, self).__init__()
 
         self.dropout = torch.nn.Dropout(dropout1)
         self.class_num = 6
@@ -822,9 +820,8 @@ class VideoGRU(torch.nn.Module):
 
     def forward(self, batch):
         audio_features, audio_feature_lengths, _ = batch
-        x_pack = PACK(audio_features, audio_feature_lengths, batch_first=True)
 
-        output, hidden = self.gru(x_pack)
+        output, hidden = self.gru(audio_features)
 
         output = self.ReLU(output)
 
