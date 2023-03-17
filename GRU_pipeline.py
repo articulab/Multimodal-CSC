@@ -48,8 +48,12 @@ class DataHolder():
         opensmile_spk_1_dict_path,
         opensmile_spk_2_dict_path
     ):
-        #import embeds
+        #import embeds and targets
         self.embeds = pd.read_feather(path_to_embeds)
+        self.embeds_col = self.embeds.iloc[:,12:].columns
+        self.embeds_tensors = torch.from_numpy(self.embeds[self.embeds_col].values).to(torch.float32)
+        self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
+        self.target_tensor = torch.from_numpy(self.embeds[self.target_col].values).to(torch.float32)
 
         #import openface data
         self.openface={}
@@ -79,9 +83,9 @@ class DataHolder():
         self.opensmile_dict[2] = filter_dict(opensmile_spk_2_dict)
 
         self._find_unused_index()
+        self._make_dyad_session_dict()
 
         #create useful params
-        self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
         self.openface_col = self.openface[1].iloc[:,3:].columns
         self.opensmile_col = self.opensmile[1].iloc[:,3:].columns
         self.class_weights = self.embeds[self.target_col].sum() / self.embeds.shape[0]
@@ -93,10 +97,19 @@ class DataHolder():
             1:torch.from_numpy(self.opensmile[1][self.opensmile_col].values).to(torch.float32),
             2:torch.from_numpy(self.opensmile[2][self.opensmile_col].values).to(torch.float32)
         }
-        self.target_tensor = torch.from_numpy(self.embeds[self.target_col].values).to(torch.float32)
 
         self._make_index()
         self._filter_indexes_before_stratify()
+
+    def _make_dyad_session_dict(self):
+        d_s = [ (dyad, session, speaker) for speaker in ('1','2') for session in self.embeds.Session.unique() for dyad in self.embeds.Dyad.unique() ]
+        def func(tup):
+            d = tup[0]
+            s = tup[1]
+            sp = tup[2]
+            return self.embeds.query(f"Dyad==@d & Session==@s & speaker==@sp").index.difference(self._unused_index)
+        self.dyad_session_dict = { tup : func(tup) for tup in d_s if len(func(tup))>0}
+        return None
 
     def _find_unused_index(self):
         """We need to remove the index of embeds that are not present in all dicts"""
@@ -138,25 +151,25 @@ class DataHolder():
         self._to_avoid = combinations[combinations.isin(to_avoid)].index
         return None
 
-    def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size=.3,val_size=None, none_count=300):
+    def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size=.3,val_size=None, none_count=None, none_prop=.3):
         output={
             'targets':self.target_tensor
         }
 
-        if not feature in ('openface', 'opensmile'):
-            print('Choose feature in ("openface","opensmile")')
-            raise
-
         if feature=='openface' :
             dic = self.openface_dict[speaker]
             output['features'] = self.openface_tensor[speaker]
-        else :
+        elif feature=='opensmile' :
             dic = self.opensmile_dict[speaker]
             output['features'] = self.opensmile_tensor[speaker]
+        else:
+            print('Choose feature in ("openface","opensmile")')
+            raise
 
         #indexes of categories to stratify
         target_index = self.indexes[speaker]['target']
         #none indexes
+        if not none_count : none_count = int( (len(target_index) * none_prop) / (1 - none_prop) )
         none_index = pd.Index(random.sample(list(self.indexes[speaker]['none']),none_count))
         #constitute df to stratify
         df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
@@ -174,6 +187,35 @@ class DataHolder():
         output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
         return {'data' : output, 'class_weights':class_weights}
 
+    def make_train_test_datasets(self,test_size=.3,val_size=None, none_count=None, none_prop=.3):
+
+        tts_openface_1  = self.stratified_train_test_split(feature = 'openface', speaker=1, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+        tts_openface_2  = self.stratified_train_test_split(feature = 'openface', speaker=2, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+        tts_opensmile_1 = self.stratified_train_test_split(feature = 'opensmile', speaker=1, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+        tts_opensmile_2 = self.stratified_train_test_split(feature = 'opensmile', speaker=2, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+
+        openface_1  = dicDataset(**tts_openface_1['data'])
+        openface_2  = dicDataset(**tts_openface_2['data'])
+        opensmile_1 = dicDataset(**tts_opensmile_1['data'])
+        opensmile_2 = dicDataset(**tts_opensmile_2['data'])
+
+        class_weights = torch.stack((tts_openface_1['class_weights'], tts_openface_2['class_weights'],tts_opensmile_1['class_weights'], tts_opensmile_2['class_weights'])).mean(dim=0)
+
+        return {
+            'datasets' : {'dyad_session_dict': self.dyad_session_dict, 'openface_1':openface_1, 'openface_2':openface_2, 'opensmile_1':opensmile_1, 'opensmile_2':opensmile_2},
+            'class_weights':class_weights
+        }
+    
+    def prepare_hierarchical(self):
+        output = {
+            'dyad_session_dict' : self.dyad_session_dict,
+            'openface_1'  : dicDataset( train_dic=self.openface_dict[1], features=self.openface_tensor[1], targets=self.target_tensor ),
+            'openface_2'  : dicDataset( train_dic=self.openface_dict[2], features=self.openface_tensor[2], targets=self.target_tensor ),
+            'opensmile_1' : dicDataset( train_dic=self.opensmile_dict[1], features=self.opensmile_tensor[1], targets=self.target_tensor ),
+            'opensmile_2' : dicDataset( train_dic=self.opensmile_dict[2], features=self.opensmile_tensor[2], targets=self.target_tensor )
+        }
+
+
 #create dataset from dict, features_data, and targets_data
 class dicDataset(Dataset):
     """
@@ -181,7 +223,7 @@ class dicDataset(Dataset):
     features_data is a tensor of openface or opensmile
     targets_data is the tensor of targets (from embeds[feature_col])
     """
-    def __init__(self, train_dic, features, targets, test_dic, valid_dic=None):
+    def __init__(self, train_dic, features, targets, test_dic=None, valid_dic=None):
         self.train_dic = train_dic
         self.test_dic = test_dic
         self.valid_dic = valid_dic
@@ -198,12 +240,21 @@ class dicDataset(Dataset):
         targets = self.t[self.keys[idx],:]
         return features, targets, len(features_indexes)
 
+    def get_item_with_index(self, idx):
+        features_indexes = self.train_dic[str(idx)]
+        features = self.f[features_indexes, :]
+        targets = self.t[idx,:]
+        return features, targets, len(features_indexes)
+
     def _get_test_item(self, idx):
         features_indexes = self.test_dic[str(idx)]
         features = self.f[features_indexes, :]
         return features, self.t[int(idx),:], len(features_indexes)
 
     def get_test(self):
+        if not self.test_dic:
+            print('No valid data')
+            raise
         return pad_collate([self._get_test_item(idx) for idx in self.test_dic.keys()])
 
     def _get_valid_item(self, idx):
@@ -225,6 +276,87 @@ def pad_collate(batch):
         'targets':torch.stack(t)
     }
     return output
+
+class HierarchicalDataset(Dataset):
+
+    def __init__(self, DH):
+        self.DH = DH
+        self.all_indexes = list(self.DH.dyad_session_dict.keys())
+        self.indexes = self.all_indexes
+        self._len=(len(self.indexes))
+        self.openface_datasets = {
+            '1' : dicDataset( train_dic=DH.openface_dict[1], features=DH.openface_tensor[1], targets=DH.target_tensor ),
+            '2' : dicDataset( train_dic=DH.openface_dict[2], features=DH.openface_tensor[2], targets=DH.target_tensor )
+        }
+        self.opensmile_datasets = {
+            '1' : dicDataset( train_dic=DH.opensmile_dict[1], features=DH.opensmile_tensor[1], targets=DH.target_tensor ),
+            '2' : dicDataset( train_dic=DH.opensmile_dict[2], features=DH.opensmile_tensor[2], targets=DH.target_tensor )
+        }
+        self._train_indexes = None
+        self._eval_indexes = None
+        self._test_indexes = None
+        self.train_eval_test_split()
+        return None
+    
+    def sort(self):
+        self.all_indexes.sort(key= lambda x : (int(x[0]), int(x[1]), int(x[2])))
+        return None
+
+    def train_test_split(self, test_size=.3, shuffle=True):
+        train = int(len(self.all_indexes) * (1-test_size))
+        self.sort()
+        if shuffle : random.shuffle(self.all_indexes)
+        self._train_indexes = self.all_indexes[:train]
+        self._test_indexes = self.all_indexes[train:]
+        self.sort()
+        print(f"Train test split:\nThere are {len(self._train_indexes)} training elements and {len(self._test_indexes)} testing elements")
+        return None
+
+    def train_eval_test_split(self, test_size=.15, eval_size=.17, shuffle=True):
+        train = int( len(self.all_indexes) * (1-test_size - eval_size) )
+        test = int( len(self.all_indexes) * test_size )
+        self.sort()
+        if shuffle : random.shuffle(self.all_indexes)
+        self._train_indexes = self.all_indexes[:train]
+        self._test_indexes = self.all_indexes[train:train+test+1]
+        self._eval_indexes = self.all_indexes[train+test+1:]
+        self.sort()
+        print(f"Train eval test split:\nThere are {len(self._train_indexes)} training elements, {len(self._eval_indexes)} eval elements, and {len(self._test_indexes)} testing elements")
+        return None
+
+    def train(self):
+        self.indexes = self._train_indexes
+        return None
+    def eval(self):
+        self.indexes = self._eval_indexes
+        return None
+    def test(self):
+        self.indexes = self._test_indexes
+        return None
+    def reset(self):
+        self.indexes = self.all_indexes
+        return None
+
+    def __len__(self):
+        return len(self.indexes)
+
+    def __getitem__(self, idx):
+        speaker = self.indexes[idx][2]
+        index = self.DH.dyad_session_dict[self.indexes[idx]]
+
+        of_batch = [ self.openface_datasets[speaker].get_item_with_index(i) for i in index ]
+        os_batch = [ self.opensmile_datasets[speaker].get_item_with_index(i) for i in index ]
+        return {
+            'targets'   : self.DH.target_tensor[index,:],
+            'embeds'    : self.DH.embeds_tensors[index,:],
+            'openface'  : pad_collate(of_batch),
+            'opensmile' : pad_collate(os_batch)
+        }
+    
+    def dataloader(self):
+        def collate_fn(batch):
+            return batch[0]
+        return DataLoader(self, batch_size=1, collate_fn = collate_fn)
 
 class GRUModel(nn.Module):
     def __init__(self, input_dim=17, hidden_dim=8, layer_dim=3, output_dim=5, dropout_prob=.1):
