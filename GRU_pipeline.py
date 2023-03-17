@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score
 
 import torch
 import torch.nn as nn
@@ -381,3 +382,131 @@ class GRUModel(nn.Module):
         out = self.s(out)
 
         return out
+
+class Pipeline():
+    def __init__(self, model, features_1, features_2, criterion, cats=['SD', 'QE', 'SV', 'PR', 'HD']):
+        self.datasets = {1 : features_1, 2 : features_2}
+        self.criterion = criterion
+        self.model = model
+        self.hist_train_loss = None
+        self.hist_test_loss = None
+        self.hist_val_loss = None
+        self.cats = cats
+
+    def eval_on_batch(self, batch):
+        self.model.eval()
+        with torch.no_grad():
+            pred = self.model(batch['features'])
+        return ( self.criterion(batch['targets'], pred) / pred.shape[0] ).detach().numpy()
+    
+    def train(self, batch_size=50, epoch=50, lr=1e-4, early_stop=None):
+
+        if not self.hist_train_loss :
+            self.hist_train_loss = []
+            self.hist_eval_loss = []
+            self.hist_test_loss = []
+        
+        test1, eval1 = self.datasets[1].get_test(), self.datasets[1].get_valid()
+        test2, eval2 = self.datasets[2].get_test(), self.datasets[2].get_valid()
+
+        dataloader1 = DataLoader(self.datasets[1], batch_size = batch_size, shuffle = True, collate_fn = pad_collate)
+        dataloader2 = DataLoader(self.datasets[2], batch_size = batch_size, shuffle = True, collate_fn = pad_collate)
+
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
+
+        self.model.train()
+        for e in range(epoch):
+            epoch_loss = 0.0
+
+            for batch1,batch2 in zip(dataloader1,dataloader2):
+
+                pred1 = self.model(batch1['features'])
+                loss1 = self.criterion(batch1['targets'], pred1)
+
+                epoch_loss += loss1
+
+                optimizer.zero_grad()
+                loss1.backward()
+                optimizer.step()
+
+                pred2 = self.model(batch2['features'])
+                loss2 = self.criterion(batch2['targets'], pred2)
+
+                epoch_loss += loss2
+
+                optimizer.zero_grad()
+                loss2.backward()
+                optimizer.step()
+            
+            if (e+1)%(epoch//5)==0:
+                print(f"loss epoch {e}: {epoch_loss:2f}")
+        
+            self.hist_train_loss.append((loss1+loss2).detach().numpy()/len(dataset))
+
+            test_loss = self.eval_on_batch(test1) + self.eval_on_batch(test2)
+            self.hist_test_loss.append(test_loss)
+            eval_loss = self.eval_on_batch(eval1) + self.eval_on_batch(eval2)
+            self.hist_eval_loss.append(eval_loss)
+        return None
+
+    def plot_losses(self):
+        fig, ax = plt.subplots(1,3, figsize=(18,4))
+        ax[0].plot(self.hist_train_loss)
+        ax[0].set_title('Train')
+        ax[1].plot(self.hist_eval_loss)
+        ax[1].set_title('Eval')
+        ax[2].plot(self.hist_test_loss)
+        ax[2].set_title('Test')
+        plt.show()
+        return None
+    
+    def eval_model(self):
+
+        test1 = self.datasets[1].get_test()
+        test2 = self.datasets[2].get_test()
+
+        pred1 = self.model(test1['features']).detach().numpy()
+        pred2 = self.model(test2['features']).detach().numpy()
+        pred = np.concatenate((pred1,pred2), axis=0)
+
+        true1 = test1['targets'].detach().numpy()
+        true2 = test2['targets'].detach().numpy()
+        true = np.concatenate((true1,true2), axis=0)
+
+        #fig, ax = plt.subplots(len(self.cats),2, figsize=(18,7))
+
+        for i, cat in enumerate(self.cats):
+            rd = simulate_randomness(true[:,i],pred[:,i])
+            res = explore_tresh(true[:,i],pred[:,i])
+
+            ax = res.plot(color =list(mcolors.TABLEAU_COLORS.values()) )#ax=ax[i][0])
+            rd.plot( ax=ax, linestyle='dashed',color =list(mcolors.TABLEAU_COLORS.values()))#ax=ax[i][0])
+            plt.title(self.cats[i])
+            plt.show()
+
+def simulate_randomness(true, pred):
+    w = pred.max() - pred.min()
+    tresh = np.linspace(pred.min()-.2*w,pred.max()+.2*w,50)
+    p=true.sum()/true.shape[0]
+    func = lambda t : np.where(pred > t,1,0).mean()
+    out = [(
+        func(t)*(2*p-1) + 1 - p,
+        p,
+        func(t),
+        (2*p*func(t)) / (p + func(t)) if func(t) > 0 else np.nan
+    ) for t in tresh]
+    out = pd.DataFrame(out, columns=['Rd. accuracy', 'Rd. precision', 'Rd. recall', 'Rd. F1 score'], index=tresh)
+    return out
+
+def explore_tresh(true, pred):
+    w = pred.max() - pred.min()
+    prop=true.sum()/true.shape[0]
+    tresh = np.linspace(pred.min()-.2*w,pred.max()+.2*w,50)
+    out = [(
+        accuracy_score(true, np.where(pred>t,1,0)),
+        precision_score(true, np.where(pred>t,1,0)),
+        recall_score(true, np.where(pred>t,1,0)),
+        f1_score(true, np.where(pred>t,1,0))
+    ) for t in tresh]
+    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score'], index=tresh)
+    return out
