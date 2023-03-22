@@ -406,7 +406,15 @@ class Pipeline():
         self.model.eval()
         with torch.no_grad():
             pred = self.model(batch['features'])
-        return self.criterion(pred, batch['targets']).cpu().detach().numpy()
+        try :
+            loss = self.criterion(pred, batch['targets']).cpu().detach().numpy()
+        except :
+            try :
+                loss = self.criterion(pred, batch['targets'].argmax(dim=1)).cpu().detach().numpy()
+            except :
+                print('Issues with eval_on_batch loss')
+                raise
+        return loss
     
     def to(self, device):
         self.model.to(device)
@@ -447,7 +455,14 @@ class Pipeline():
 
                 self.model.train()
                 pred1 = self.model(batch1['features'])
-                loss1 = self.criterion(pred1, batch1['targets'])
+                try :
+                    loss1 = self.criterion(pred1, batch1['targets'])
+                except :
+                    try :
+                        loss1 = self.criterion(pred1, batch1['targets'].argmax(dim=1))
+                    except :
+                        print("Can't apply loss to batch1")
+                        raise
 
                 epoch_loss += loss1
 
@@ -457,7 +472,14 @@ class Pipeline():
                 optimizer.step()
 
                 pred2 = self.model(batch2['features'])
-                loss2 = self.criterion(pred2, batch2['targets'])
+                try :
+                    loss2 = self.criterion(pred2, batch2['targets'])
+                except :
+                    try :
+                        loss2 = self.criterion(pred2, batch2['targets'].argmax(dim=1))
+                    except :
+                        print("Can't apply loss to batch1")
+                        raise
 
                 epoch_loss += loss2
 
