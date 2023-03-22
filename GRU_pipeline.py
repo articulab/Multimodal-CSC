@@ -415,7 +415,7 @@ class Pipeline():
         return None
 
     
-    def train(self, batch_size=48, epoch=50, lr=1e-4, gpu=False, early_stop=None):
+    def train(self, batch_size=48, epoch=50, lr=1e-4, gpu=False, early_stop=None, tolerance=7):
 
         if gpu :
             if torch.backends.mps.is_available(): device = 'mps'
@@ -439,8 +439,8 @@ class Pipeline():
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
-
-        for e in range(epoch):
+        e=1
+        while e<=epoch and (not early_stop or tolerance >=0):
             epoch_loss = 0.0
 
             for batch1,batch2 in zip(dataloader1,dataloader2):
@@ -466,17 +466,34 @@ class Pipeline():
                 loss2.backward()
                 optimizer.step()
             
-            if (e+1)%(epoch//5)==0:
+            if e%(epoch//5)==0:
                 print(f"loss epoch {e}: {epoch_loss:2f}")
         
             self.hist_train_loss.append(( (loss1+loss2) / ( len(self.datasets[1]) + len(self.datasets[2] ) ) ).cpu().detach().numpy())
 
+            eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
+
+            if early_stop and e > 20:
+                if eval_loss > np.array(self.hist_eval_loss).min():
+                    tolerance += -1
+
+            self.hist_eval_loss.append(eval_loss)
+
             if e%3==0:
                 test_loss = ( self.eval_on_batch(test1) + self.eval_on_batch(test2) ) / ( len(test1) + len(test2) )
                 self.hist_test_loss.append(test_loss)
-                eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
-                self.hist_eval_loss.append(eval_loss)
                 self.hist_auf1c.append(self.eval_model(plot=False))
+
+            # if e > 20 and early_stop:
+            #     average_diff = pd.Series(self.hist_eval_loss[-10:]).diff().mean()
+            #     average_loss = np.abs(self.hist_eval_loss[-10:]).mean()
+            #     if average_diff < - average_loss *.05 :
+            #         print(f"Early stop at epoch {e}, average diff on latest 10 eval loss is {average_diff:.2f} and last eval loss is {average_loss:.2f}.")
+            #         break
+
+            e+=1
+        
+        if early_stop : print(f"Early stop activated, stopped at epoch {e}")
         
         self.to('cpu')
         return None
