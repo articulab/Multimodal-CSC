@@ -7,7 +7,7 @@ import matplotlib.colors as mcolors
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score
-import scipy.stats as stats
+from sklearn.feature_selection import chi2
 
 import torch
 import torch.nn as nn
@@ -243,6 +243,11 @@ class dicDataset(Dataset):
         features = self.f[features_indexes, :]
         targets = self.t[self.keys[idx],:]
         return features, targets, len(features_indexes)
+    
+    def to(self, device):
+        self.f = self.f.to(device)
+        self.t = self.t.to(device)
+        return None
 
     def get_item_with_index(self, idx):
         features_indexes = self.train_dic[str(idx)]
@@ -394,20 +399,37 @@ class Pipeline():
         self.hist_train_loss = None
         self.hist_test_loss = None
         self.hist_val_loss = None
+        self.hist_auf1c = None
         self.cats = cats
 
     def eval_on_batch(self, batch):
         self.model.eval()
         with torch.no_grad():
             pred = self.model(batch['features'])
-        return self.criterion(pred, batch['targets']).detach().numpy()
+        return self.criterion(pred, batch['targets']).cpu().detach().numpy()
     
-    def train(self, batch_size=50, epoch=50, lr=1e-4, early_stop=None):
+    def to(self, device):
+        self.model.to(device)
+        self.datasets[1].to(device)
+        self.datasets[2].to(device)
+        return None
+
+    
+    def train(self, batch_size=48, epoch=50, lr=1e-4, gpu=False, early_stop=None):
+
+        if gpu :
+            if torch.backends.mps.is_available(): device = 'mps'
+            elif torch.cuda.is_available():       device = 'cuda'
+            else :                                device = 'cpu'
+        else : device = 'cpu'
+        self.to(device)
+        print("Training on", device)
 
         if not self.hist_train_loss :
             self.hist_train_loss = []
             self.hist_eval_loss = []
             self.hist_test_loss = []
+            self.hist_auf1c = []
         
         test1, eval1 = self.datasets[1].get_test(), self.datasets[1].get_valid()
         test2, eval2 = self.datasets[2].get_test(), self.datasets[2].get_valid()
@@ -417,18 +439,20 @@ class Pipeline():
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr)
 
-        self.model.train()
+
         for e in range(epoch):
             epoch_loss = 0.0
 
             for batch1,batch2 in zip(dataloader1,dataloader2):
 
+                self.model.train()
                 pred1 = self.model(batch1['features'])
                 loss1 = self.criterion(pred1, batch1['targets'])
 
                 epoch_loss += loss1
 
-                optimizer.zero_grad()
+                for param in self.model.parameters():
+                    param.grad = None
                 loss1.backward()
                 optimizer.step()
 
@@ -437,29 +461,36 @@ class Pipeline():
 
                 epoch_loss += loss2
 
-                optimizer.zero_grad()
+                for param in self.model.parameters():
+                    param.grad = None
                 loss2.backward()
                 optimizer.step()
             
             if (e+1)%(epoch//5)==0:
                 print(f"loss epoch {e}: {epoch_loss:2f}")
         
-            self.hist_train_loss.append( (loss1+loss2).detach().numpy()/ ( len(self.datasets[1]) + len(self.datasets[2] ) ) )
+            self.hist_train_loss.append(( (loss1+loss2) / ( len(self.datasets[1]) + len(self.datasets[2] ) ) ).cpu().detach().numpy())
 
-            test_loss = ( self.eval_on_batch(test1) + self.eval_on_batch(test2) ) / ( len(test1) + len(test2) )
-            self.hist_test_loss.append(test_loss)
-            eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
-            self.hist_eval_loss.append(eval_loss)
+            if e%3==0:
+                test_loss = ( self.eval_on_batch(test1) + self.eval_on_batch(test2) ) / ( len(test1) + len(test2) )
+                self.hist_test_loss.append(test_loss)
+                eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
+                self.hist_eval_loss.append(eval_loss)
+                self.hist_auf1c.append(self.eval_model(plot=False))
+        
+        self.to('cpu')
         return None
 
     def plot_losses(self):
-        fig, ax = plt.subplots(1,3, figsize=(18,4))
+        fig, ax = plt.subplots(1,4, figsize=(18,4))
         ax[0].plot(self.hist_train_loss)
         ax[0].set_title('Train')
         ax[1].plot(self.hist_eval_loss)
         ax[1].set_title('Eval')
         ax[2].plot(self.hist_test_loss)
         ax[2].set_title('Test')
+        pd.DataFrame(self.hist_auf1c, columns=self.cats).plot(ax=ax[3])
+        ax[3].set_title('Area under f1 score')
         plt.show()
         return None
     
@@ -470,12 +501,12 @@ class Pipeline():
         test1 = self.datasets[1].get_test()
         test2 = self.datasets[2].get_test()
 
-        pred1 = self.model(test1['features']).detach().numpy()
-        pred2 = self.model(test2['features']).detach().numpy()
+        pred1 = self.model(test1['features']).cpu().detach().numpy()
+        pred2 = self.model(test2['features']).cpu().detach().numpy()
         pred = np.concatenate((pred1,pred2), axis=0)
 
-        true1 = test1['targets'].detach().numpy()
-        true2 = test2['targets'].detach().numpy()
+        true1 = test1['targets'].cpu().detach().numpy()
+        true2 = test2['targets'].cpu().detach().numpy()
         true = np.concatenate((true1,true2), axis=0)
         counts = true.sum(axis=0)
 
@@ -485,18 +516,17 @@ class Pipeline():
             rd = simulate_randomness(true[:,i],pred[:,i])
             res = explore_tresh(true[:,i],pred[:,i])
 
-            f1.append((res.values[:,-1] - rd.values[:,-1]).sum())
+            f1.append((res['F1 score'].values - rd['Rd. F1 score'].values).mean())
             if plot :
                 ax = res.plot(color =list(mcolors.TABLEAU_COLORS.values()) )#ax=ax[i][0])
                 rd.plot( ax=ax, linestyle='dashed',color =list(mcolors.TABLEAU_COLORS.values()))#ax=ax[i][0])
                 plt.title(f"{self.cats[i]}\nSupport:{int(counts[i])}")
                 plt.show()
         
-        final_score = (np.array(f1) * counts).mean() / len(pred) #weighted area between actual and random f1 score
-        return final_score
+        return f1
 
 def simulate_randomness(true, pred):
-    tresh = np.linspace(pred.min(),pred.max(),50)
+    tresh = np.linspace(pred.min(),pred.max(),20)
     p=true.sum()/true.shape[0]
     func = lambda t : np.where(pred > t,1,0).mean()
     out = [(
@@ -510,13 +540,14 @@ def simulate_randomness(true, pred):
 
 def explore_tresh(true, pred):
     prop=true.sum()/true.shape[0]
-    tresh = np.linspace(pred.min(),pred.max(),50)
+    tresh = np.linspace(pred.min(),pred.max(),20)
     out = [(
         accuracy_score(true, np.where(pred>t,1,0)),
         precision_score(true, np.where(pred>t,1,0), zero_division=1),
         recall_score(true, np.where(pred>t,1,0)),
         f1_score(true, np.where(pred>t,1,0)),
-        stats.chisquare(np.where(pred>t,1,0), true)[1]
+        chi2( np.where(pred>t,1,0).reshape(-1,1) , true )[1][0]
     ) for t in tresh[:-1]]
-    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', 'p-value'], index=tresh[:-1])
+    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', '- .5 log p-value'], index=tresh[:-1])
+    out['- .5 log p-value'] = - np.log10(out['- .5 log p-value']) / 2
     return out
