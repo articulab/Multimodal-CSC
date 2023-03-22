@@ -143,37 +143,72 @@ class DataHolder():
             'targets':self.target_tensor
         }
 
-        if not feature in ('openface', 'opensmile'):
+        if not feature in ('openface', 'opensmile', 'multimodal'):
             print('Choose feature in ("openface","opensmile")')
             raise
+        
+        elif feature=="multimodal":
+            dic_openface = self.openface_dict[speaker]
+            dic_opensmile = self.opensmile_dict[speaker]
+            output["audio_features"] = self.opensmile_tensor[speaker]
+            output["video_features"] = self.openface_tensor[speaker]
 
-        if feature=='openface' :
-            dic = self.openface_dict[speaker]
-            output['features'] = self.openface_tensor[speaker]
-        else :
-            dic = self.opensmile_dict[speaker]
-            output['features'] = self.opensmile_tensor[speaker]
+            #indexes of categories to stratify
+            target_index = self.indexes[speaker]['target']
+            #none indexes
+            none_index = pd.Index(random.sample(list(self.indexes[speaker]['none']), none_count))
+            #constitute df to stratify
+            df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
+            class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
+            train, test = train_test_split(df, test_size=test_size, stratify=df)
 
-        #indexes of categories to stratify
-        target_index = self.indexes[speaker]['target']
-        #none indexes
-        none_index = pd.Index(random.sample(list(self.indexes[speaker]['none']),none_count))
-        #constitute df to stratify
-        df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
-        class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
-        train, test = train_test_split(df, test_size=test_size, stratify=df)
-        output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
+            output['test_dic_openface']  = {k:v for (k,v) in dic_openface.items() if int(k) in test.index.union(self._to_avoid)}
+            output['test_dic_opensmile']  = {k:v for (k,v) in dic_opensmile.items() if int(k) in test.index.union(self._to_avoid)}
+            if val_size :
+                train, valid = train_test_split(train, test_size = val_size, stratify=train)
+                
+                output['train_dic_openface'] = {k:v for (k,v) in dic_openface.items() if int(k) in train.index}
+                output['valid_dic_openface'] = {k:v for (k,v) in dic_openface.items() if int(k) in valid.index}
 
-        if val_size :
-            train, valid = train_test_split(train, test_size = val_size, stratify=train)
+                output['train_dic_opensmile'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in train.index}
+                output['valid_dic_opensmile'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in valid.index}
+                return {'data' : output, 'class_weights':class_weights}
+
             
-            output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
-            output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
+            output['train_dic_openface'] = {k:v for (k,v) in dic_openface.items() if int(k) in train.index}
+            output['train_dic_opensmile'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in train.index}
             return {'data' : output, 'class_weights':class_weights}
 
-        
-        output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
-        return {'data' : output, 'class_weights':class_weights}
+
+        else:
+            if feature=='openface' :
+                dic = self.openface_dict[speaker]
+                output['features'] = self.openface_tensor[speaker]
+
+            elif feature=="opensmile":
+                dic = self.opensmile_dict[speaker]
+                output['features'] = self.opensmile_tensor[speaker]
+
+            #indexes of categories to stratify
+            target_index = self.indexes[speaker]['target']
+            #none indexes
+            none_index = pd.Index(random.sample(list(self.indexes[speaker]['none']),none_count))
+            #constitute df to stratify
+            df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
+            class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
+            train, test = train_test_split(df, test_size=test_size, stratify=df)
+            output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
+
+            if val_size :
+                train, valid = train_test_split(train, test_size = val_size, stratify=train)
+                
+                output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
+                output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
+                return {'data' : output, 'class_weights':class_weights}
+
+            
+            output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
+            return {'data' : output, 'class_weights':class_weights}
 
 #create dataset from dict, features_data, and targets_data
 class dicDataset(Dataset):
@@ -221,11 +256,81 @@ class dicDataset(Dataset):
             raise
         return pad_collate([self._get_valid_item(idx) for idx in self.valid_dic.keys()])
 
+#create dataset from dict, features_data, and targets_data
+class MultiModalDicDataset(Dataset):
+    """
+    dict has {index in targets_data : related indexes in features_data}
+    features_data is a tensor of openface or opensmile
+    targets_data is the tensor of targets (from embeds[feature_col])
+    """
+    def __init__(self, train_dic_openface, train_dic_opensmile, test_dic_openface, test_dic_opensmile, features_openface, features_opensmile, targets, valid_dic_openface=None, valid_dic_opensmile=None):
+        self.train_dic_openface, self.train_dic_opensmile = train_dic_openface, train_dic_opensmile
+        self.test_dic_openface, self.test_dic_opensmile = test_dic_openface, test_dic_opensmile
+        self.valid_dic_openface, self.valid_dic_opensmile = valid_dic_openface, valid_dic_opensmile
+        self.f_openface = features_openface
+        self.f_opensmile = features_opensmile
+        self.t = targets
+        self.keys_openface = [int(i) for i in train_dic_openface.keys()]
+        self.keys_opensmile = [int(i) for i in train_dic_opensmile.keys()]
+    
+    def __len__(self):
+        return len(self.train_dic_openface)
+
+    def __getitem__(self, idx):
+        features_indexes_openface = self.train_dic_openface[str(self.keys[idx])]
+        features_indexes_opensmile = self.train_dic_opensmile[str(self.keys[idx])]
+
+        features_openface = self.f_openface[features_indexes_openface, :]
+        features_opensmile = self.f_opensmile[features_indexes_opensmile, :]
+
+        targets = self.t[self.keys[idx],:]
+        return features_openface, features_opensmile, targets, len(features_indexes_openface), len(features_indexes_opensmile)
+        # return {"features_openface":features_openface, 
+        #         "features_opensmile": features_opensmile, 
+        #         "targets":targets, 
+        #         "len_openface":len(features_indexes_openface),
+        #         "len_opensmile":len(features_indexes_opensmile)}
+
+    def _get_test_item(self, idx):
+        of_features_indexes = self.test_dic_openface[str(idx)]
+        os_features_indexes = self.test_dic_opensmile[str(idx)]
+        openface_features = self.f_openface[of_features_indexes, :]
+        opensmile_features = self.f_opensmile[os_features_indexes, :]
+
+        return openface_features, opensmile_features, self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+        # return {"openface_features":openface_features,
+        #         "opensmile_features":opensmile_features,
+        #         "targets":self.t[int(idx),:],
+        #         "len_openface_features":len(of_features_indexes),
+        #         "len_opensmile_features":len(os_features_indexes)
+        #     }
+
+    def get_test(self):
+        return pad_collate([self._get_test_item(idx) for idx in self.test_dic.keys()])
+
+    def get_train(self):
+        return pad_collate([self.__getitem__(idx) for idx in range(self.__len__())])
+
+    def _get_valid_item(self, idx):
+        of_features_indexes = self.valid_dic_openface[str(idx)]
+        os_features_indexes = self.valid_dic_opensmile[str(idx)]
+        openface_features = self.f_openface[of_features_indexes, :]
+        opensmile_features = self.f_opensmile[os_features_indexes, :]
+
+        return openface_features, opensmile_features, self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+
+    def get_valid(self):
+        if not self.valid_dic:
+            print('No valid data')
+            raise
+        return pad_collate([self._get_valid_item(idx) for idx in self.valid_dic.keys()])
+
 def pad_collate(batch):
     """Pads and packs a batch of items from dicDataset"""
-    f,t,l = [*zip(*batch)]
+    of_f, os_f, t, of_l, os_l = [*zip(*batch)]
     output = {
-        'features':pack_padded_sequence(pad_sequence(f,batch_first=True), l, batch_first=True, enforce_sorted=False),
+        'features_of':pack_padded_sequence(pad_sequence(of_f,batch_first=True), of_l, batch_first=True, enforce_sorted=False),
+        'features_os':pack_padded_sequence(pad_sequence(os_f,batch_first=True), os_l, batch_first=True, enforce_sorted=False),
         'targets':torch.stack(t)
     }
     return output
