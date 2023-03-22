@@ -499,15 +499,22 @@ class Pipeline():
         self.model.eval()
 
         test1 = self.datasets[1].get_test()
-        test2 = self.datasets[2].get_test()
-
         pred1 = self.model(test1['features']).cpu().detach().numpy()
+        test2 = self.datasets[2].get_test()
         pred2 = self.model(test2['features']).cpu().detach().numpy()
-        pred = np.concatenate((pred1,pred2), axis=0)
+
+        eval1 = self.datasets[1].get_valid()
+        pred3 = self.model(eval1['features']).cpu().detach().numpy()
+        eval2 = self.datasets[2].get_valid()
+        pred4 = self.model(eval2['features']).cpu().detach().numpy()
+
+        pred = np.concatenate((pred1, pred2, pred3, pred4), axis=0)
 
         true1 = test1['targets'].cpu().detach().numpy()
         true2 = test2['targets'].cpu().detach().numpy()
-        true = np.concatenate((true1,true2), axis=0)
+        true3 = eval1['targets'].cpu().detach().numpy()
+        true4 = eval2['targets'].cpu().detach().numpy()
+        true = np.concatenate((true1,true2,true3,true4), axis=0)
         counts = true.sum(axis=0)
 
         #fig, ax = plt.subplots(len(self.cats),2, figsize=(18,7))
