@@ -50,7 +50,7 @@ class DataHolder():
     ):
         #import embeds
         self.embeds = pd.read_feather(path_to_embeds)
-
+        
         #import openface data
         self.openface={}
         self.openface[1] = pd.read_feather(openface_spk_1_path)
@@ -84,6 +84,7 @@ class DataHolder():
         self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
         self.openface_col = self.openface[1].iloc[:,3:].columns
         self.opensmile_col = self.opensmile[1].iloc[:,3:].columns
+        self.embeds_col = self.embeds.iloc[0, 12:].columns
         self.class_weights = self.embeds[self.target_col].sum() / self.embeds.shape[0]
         self.openface_tensor = {
             1:torch.from_numpy(self.openface[1][self.openface_col].values).to(torch.float32),
@@ -93,6 +94,7 @@ class DataHolder():
             1:torch.from_numpy(self.opensmile[1][self.opensmile_col].values).to(torch.float32),
             2:torch.from_numpy(self.opensmile[2][self.opensmile_col].values).to(torch.float32)
         }
+        self.embeds_tensor = torch.form_numpy(self.embeds[self.embeds_col].values).to(torch.float32)
         self.target_tensor = torch.from_numpy(self.embeds[self.target_col].values).to(torch.float32)
 
         self._make_index()
@@ -140,7 +142,8 @@ class DataHolder():
 
     def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size = .3,val_size=None, none_count=300):
         output={
-            'targets':self.target_tensor
+            'targets':self.target_tensor,
+            'embeds' :self.embeds_tensor
         }
 
         if not feature in ('openface', 'opensmile', 'multimodal'):
@@ -263,13 +266,14 @@ class MultiModalDicDataset(Dataset):
     features_data is a tensor of openface or opensmile
     targets_data is the tensor of targets (from embeds[feature_col])
     """
-    def __init__(self, train_dic_openface, train_dic_opensmile, test_dic_openface, test_dic_opensmile, features_openface, features_opensmile, targets, valid_dic_openface=None, valid_dic_opensmile=None):
+    def __init__(self, train_dic_openface, train_dic_opensmile, test_dic_openface, test_dic_opensmile, features_openface, features_opensmile, embeds, targets, valid_dic_openface=None, valid_dic_opensmile=None):
         self.train_dic_openface, self.train_dic_opensmile = train_dic_openface, train_dic_opensmile
         self.test_dic_openface, self.test_dic_opensmile = test_dic_openface, test_dic_opensmile
         self.valid_dic_openface, self.valid_dic_opensmile = valid_dic_openface, valid_dic_opensmile
         self.f_openface = features_openface
         self.f_opensmile = features_opensmile
         self.t = targets
+        self.e = embeds
         self.keys_openface = [int(i) for i in train_dic_openface.keys()]
         self.keys_opensmile = [int(i) for i in train_dic_opensmile.keys()]
     
@@ -284,7 +288,8 @@ class MultiModalDicDataset(Dataset):
         features_opensmile = self.f_opensmile[features_indexes_opensmile, :]
 
         targets = self.t[self.keys[idx],:]
-        return features_openface, features_opensmile, targets, len(features_indexes_openface), len(features_indexes_opensmile)
+        embeds = self.e[self.keys[idx], :]
+        return features_openface, features_opensmile, embeds, targets, len(features_indexes_openface), len(features_indexes_opensmile)
         # return {"features_openface":features_openface, 
         #         "features_opensmile": features_opensmile, 
         #         "targets":targets, 
@@ -297,7 +302,7 @@ class MultiModalDicDataset(Dataset):
         openface_features = self.f_openface[of_features_indexes, :]
         opensmile_features = self.f_opensmile[os_features_indexes, :]
 
-        return openface_features, opensmile_features, self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+        return openface_features, opensmile_features, self.e[int(idx)], self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
         # return {"openface_features":openface_features,
         #         "opensmile_features":opensmile_features,
         #         "targets":self.t[int(idx),:],
@@ -317,7 +322,7 @@ class MultiModalDicDataset(Dataset):
         openface_features = self.f_openface[of_features_indexes, :]
         opensmile_features = self.f_opensmile[os_features_indexes, :]
 
-        return openface_features, opensmile_features, self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+        return openface_features, opensmile_features, self.e[nt(idx)], self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
 
     def get_valid(self):
         if not self.valid_dic:
@@ -327,10 +332,11 @@ class MultiModalDicDataset(Dataset):
 
 def pad_collate(batch):
     """Pads and packs a batch of items from dicDataset"""
-    of_f, os_f, t, of_l, os_l = [*zip(*batch)]
+    of_f, os_f, e, t, of_l, os_l = [*zip(*batch)]
     output = {
         'features_of':pack_padded_sequence(pad_sequence(of_f,batch_first=True), of_l, batch_first=True, enforce_sorted=False),
         'features_os':pack_padded_sequence(pad_sequence(os_f,batch_first=True), os_l, batch_first=True, enforce_sorted=False),
+        'embeds':torch.stack(e),
         'targets':torch.stack(t)
     }
     return output
