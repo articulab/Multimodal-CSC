@@ -46,10 +46,16 @@ class DataHolder():
         opensmile_spk_1_path,
         opensmile_spk_2_path,
         opensmile_spk_1_dict_path,
-        opensmile_spk_2_dict_path
+        opensmile_spk_2_dict_path,
+        none_as_class = False
     ):
         #import embeds
         self.embeds = pd.read_feather(path_to_embeds)
+        if none_as_class:
+            self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD', "N"]
+            self.embeds["N"] = (1 - self.embeds[['SD', 'QE', 'SV', 'PR', 'HD']].sum(axis = 1)).replace(-1, 0)
+        else:
+            self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
         
         #import openface data
         self.openface={}
@@ -81,10 +87,9 @@ class DataHolder():
         self._find_unused_index()
 
         #create useful params
-        self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
         self.openface_col = self.openface[1].iloc[:,3:].columns
         self.opensmile_col = self.opensmile[1].iloc[:,3:].columns
-        self.embeds_col = self.embeds.iloc[0, 12:].columns
+        self.embeds_col = self.embeds.iloc[:, 13:].columns
         self.class_weights = self.embeds[self.target_col].sum() / self.embeds.shape[0]
         self.openface_tensor = {
             1:torch.from_numpy(self.openface[1][self.openface_col].values).to(torch.float32),
@@ -94,7 +99,7 @@ class DataHolder():
             1:torch.from_numpy(self.opensmile[1][self.opensmile_col].values).to(torch.float32),
             2:torch.from_numpy(self.opensmile[2][self.opensmile_col].values).to(torch.float32)
         }
-        self.embeds_tensor = torch.form_numpy(self.embeds[self.embeds_col].values).to(torch.float32)
+        self.embeds_tensor = torch.from_numpy(self.embeds[self.embeds_col].values).to(torch.float32)
         self.target_tensor = torch.from_numpy(self.embeds[self.target_col].values).to(torch.float32)
 
         self._make_index()
@@ -116,10 +121,10 @@ class DataHolder():
         self.indexes={}
         for cat in self.target_col:
             self.indexes[cat] = df.loc[df[cat]==1].index
-        self.indexes['target'] = df.loc[df.sum(axis=1)>0].index
-        self.indexes['none'] = df.index.difference(self.indexes['target'])
+        self.indexes['none'] = df[df["N"] == 1].index
+        self.indexes['target'] = df.index.difference(self.indexes['none'])
 
-        names = ['SD', 'QE', 'SV', 'PR', 'HD', 'target', 'none']
+        names = ['SD', 'QE', 'SV', 'PR', 'HD', 'N', 'target', 'none']
 
         self.indexes[1]={}
         self.indexes[2]={}
@@ -153,8 +158,8 @@ class DataHolder():
         elif feature=="multimodal":
             dic_openface = self.openface_dict[speaker]
             dic_opensmile = self.opensmile_dict[speaker]
-            output["audio_features"] = self.opensmile_tensor[speaker]
-            output["video_features"] = self.openface_tensor[speaker]
+            output["features_opensmile"] = self.opensmile_tensor[speaker]
+            output["features_openface"] = self.openface_tensor[speaker]
 
             #indexes of categories to stratify
             target_index = self.indexes[speaker]['target']
@@ -281,14 +286,14 @@ class MultiModalDicDataset(Dataset):
         return len(self.train_dic_openface)
 
     def __getitem__(self, idx):
-        features_indexes_openface = self.train_dic_openface[str(self.keys[idx])]
-        features_indexes_opensmile = self.train_dic_opensmile[str(self.keys[idx])]
+        features_indexes_openface = self.train_dic_openface[str(self.keys_openface[idx])]
+        features_indexes_opensmile = self.train_dic_opensmile[str(self.keys_opensmile[idx])]
 
         features_openface = self.f_openface[features_indexes_openface, :]
         features_opensmile = self.f_opensmile[features_indexes_opensmile, :]
 
-        targets = self.t[self.keys[idx],:]
-        embeds = self.e[self.keys[idx], :]
+        targets = self.t[self.keys_openface[idx],:]
+        embeds = self.e[self.keys_openface[idx], :]
         return features_openface, features_opensmile, embeds, targets, len(features_indexes_openface), len(features_indexes_opensmile)
         # return {"features_openface":features_openface, 
         #         "features_opensmile": features_opensmile, 
@@ -356,7 +361,7 @@ class GRUModel(nn.Module):
 
         x, hidden = self.gru(x_packed)
 
-        x,l = pad_packed_sequence(x, batch_first=True)
+        x, l = pad_packed_sequence(x, batch_first=True)
 
         out = torch.stack([x[i][l[i]-1] for i in range(x.shape[0])])
 

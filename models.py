@@ -829,3 +829,74 @@ class VideoGRU(torch.nn.Module):
         out = self.classifier(out)
 
         return out
+
+
+
+class GRUMultiModal(torch.nn.Module):
+    def __init__(self, embeddings_dim = 768, audio_input_dim=17, audio_hidden_dim=8, audio_hidden_dim2=20, audio_layer_dim=3, video_input_dim=17, video_hidden_dim=8, video_hidden_dim2=20, video_layer_dim=3, output_dim=5, dropout_prob=.1):
+        super(GRUMultiModal, self).__init__()
+        self.dropout = torch.nn.Dropout(dropout_prob)
+        self.class_num = 6
+        # Define the AUs pipeline
+
+        # Define the Audio part of the multi-modal model
+        self.audio_gru = torch.nn.GRU(
+            input_size = audio_input_dim,
+            hidden_size = audio_hidden_dim,
+            num_layers = audio_layer_dim,
+            bidirectional = True,
+            batch_first = True,
+        ) 
+        self.audio_fc1 = torch.nn.Linear(audio_hidden_dim * 2, audio_hidden_dim2)
+
+
+        # Define the Video part of the multi-modal model
+        self.video_gru = torch.nn.GRU(
+            input_size = video_input_dim,
+            hidden_size = video_hidden_dim,
+            num_layers = video_layer_dim,
+            bidirectional = True,
+            batch_first = True,
+        ) 
+        self.video_fc1 = torch.nn.Linear(video_hidden_dim * 2, video_hidden_dim2)
+
+        # Define the text embeddings part
+        self.embeds_fc1 = torch.nn.Linear(embeddings_dim, embeddings_dim)
+        self.embeds_fc2 = torch.nn.Linear(embeddings_dim, embeddings_dim // 2)
+
+
+        self.ReLU = torch.nn.LeakyReLU(.1)
+        self.sigmoid = torch.nn.Sigmoid()
+        # Do not make a class for the "None" class
+        self.classifier = torch.nn.Linear(embeddings_dim // 2 + audio_hidden_dim2 + video_hidden_dim2, output_dim) # 6
+
+    def forward(self, embeddings, audio_packed, video_packed):
+        # Forward pass of the features
+        audio_x, audio_hidden = self.audio_gru(audio_packed)
+        video_x, video_hidden = self.video_gru(video_packed)
+
+        audio_x, audio_l = pad_packed_sequence(audio_x, batch_first = True)
+        video_x, video_l = pad_packed_sequence(video_x, batch_first = True)
+
+        audio_out = torch.stack([audio_x[i][audio_l[i] - 1] for i in range(audio_x.shape[0])])
+        audio_out = self.audio_fc1(self.ReLU(audio_out))
+
+        video_out = torch.stack([video_x[i][video_l[i] - 1] for i in range(video_x.shape[0])])
+        video_out = self.video_fc1(self.ReLU(video_out))
+
+        # Forward pass of the embeddings
+        embeds_x = self.embeds_fc1(embeddings)
+        embeds_x = self.ReLU(embeds_x)
+
+        embeds_x = self.embeds_fc2(embeds_x)
+        embeds_out = self.ReLU(embeds_x)
+
+        # Concatenate all the inputs
+
+        cat = torch.cat([embeds_out, video_out, audio_out], dim = 1)
+
+        cat = self.ReLU(cat)
+        out = self.classifier(cat)
+        out = self.sigmoid(out)
+
+        return out
