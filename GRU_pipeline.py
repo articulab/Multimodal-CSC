@@ -1,10 +1,13 @@
 import json
 import random
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score
+import scipy.stats as stats
 
 import torch
 import torch.nn as nn
@@ -397,7 +400,7 @@ class Pipeline():
         self.model.eval()
         with torch.no_grad():
             pred = self.model(batch['features'])
-        return ( self.criterion(batch['targets'], pred) / pred.shape[0] ).detach().numpy()
+        return self.criterion(pred, batch['targets']).detach().numpy()
     
     def train(self, batch_size=50, epoch=50, lr=1e-4, early_stop=None):
 
@@ -421,7 +424,7 @@ class Pipeline():
             for batch1,batch2 in zip(dataloader1,dataloader2):
 
                 pred1 = self.model(batch1['features'])
-                loss1 = self.criterion(batch1['targets'], pred1)
+                loss1 = self.criterion(pred1, batch1['targets'])
 
                 epoch_loss += loss1
 
@@ -430,7 +433,7 @@ class Pipeline():
                 optimizer.step()
 
                 pred2 = self.model(batch2['features'])
-                loss2 = self.criterion(batch2['targets'], pred2)
+                loss2 = self.criterion(pred2, batch2['targets'])
 
                 epoch_loss += loss2
 
@@ -441,11 +444,11 @@ class Pipeline():
             if (e+1)%(epoch//5)==0:
                 print(f"loss epoch {e}: {epoch_loss:2f}")
         
-            self.hist_train_loss.append((loss1+loss2).detach().numpy()/len(dataset))
+            self.hist_train_loss.append( (loss1+loss2).detach().numpy()/ ( len(self.datasets[1]) + len(self.datasets[2] ) ) )
 
-            test_loss = self.eval_on_batch(test1) + self.eval_on_batch(test2)
+            test_loss = ( self.eval_on_batch(test1) + self.eval_on_batch(test2) ) / ( len(test1) + len(test2) )
             self.hist_test_loss.append(test_loss)
-            eval_loss = self.eval_on_batch(eval1) + self.eval_on_batch(eval2)
+            eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
             self.hist_eval_loss.append(eval_loss)
         return None
 
@@ -460,7 +463,9 @@ class Pipeline():
         plt.show()
         return None
     
-    def eval_model(self):
+    def eval_model(self, plot=True):
+
+        self.model.eval()
 
         test1 = self.datasets[1].get_test()
         test2 = self.datasets[2].get_test()
@@ -472,21 +477,26 @@ class Pipeline():
         true1 = test1['targets'].detach().numpy()
         true2 = test2['targets'].detach().numpy()
         true = np.concatenate((true1,true2), axis=0)
+        counts = true.sum(axis=0)
 
         #fig, ax = plt.subplots(len(self.cats),2, figsize=(18,7))
-
+        f1=[]
         for i, cat in enumerate(self.cats):
             rd = simulate_randomness(true[:,i],pred[:,i])
             res = explore_tresh(true[:,i],pred[:,i])
 
-            ax = res.plot(color =list(mcolors.TABLEAU_COLORS.values()) )#ax=ax[i][0])
-            rd.plot( ax=ax, linestyle='dashed',color =list(mcolors.TABLEAU_COLORS.values()))#ax=ax[i][0])
-            plt.title(self.cats[i])
-            plt.show()
+            f1.append((res.values[:,-1] - rd.values[:,-1]).sum())
+            if plot :
+                ax = res.plot(color =list(mcolors.TABLEAU_COLORS.values()) )#ax=ax[i][0])
+                rd.plot( ax=ax, linestyle='dashed',color =list(mcolors.TABLEAU_COLORS.values()))#ax=ax[i][0])
+                plt.title(f"{self.cats[i]}\nSupport:{int(counts[i])}")
+                plt.show()
+        
+        final_score = (np.array(f1) * counts).mean() / len(pred) #weighted area between actual and random f1 score
+        return final_score
 
 def simulate_randomness(true, pred):
-    w = pred.max() - pred.min()
-    tresh = np.linspace(pred.min()-.2*w,pred.max()+.2*w,50)
+    tresh = np.linspace(pred.min(),pred.max(),50)
     p=true.sum()/true.shape[0]
     func = lambda t : np.where(pred > t,1,0).mean()
     out = [(
@@ -494,19 +504,19 @@ def simulate_randomness(true, pred):
         p,
         func(t),
         (2*p*func(t)) / (p + func(t)) if func(t) > 0 else np.nan
-    ) for t in tresh]
-    out = pd.DataFrame(out, columns=['Rd. accuracy', 'Rd. precision', 'Rd. recall', 'Rd. F1 score'], index=tresh)
+    ) for t in tresh[:-1]]
+    out = pd.DataFrame(out, columns=['Rd. accuracy', 'Rd. precision', 'Rd. recall', 'Rd. F1 score'], index=tresh[:-1])
     return out
 
 def explore_tresh(true, pred):
-    w = pred.max() - pred.min()
     prop=true.sum()/true.shape[0]
-    tresh = np.linspace(pred.min()-.2*w,pred.max()+.2*w,50)
+    tresh = np.linspace(pred.min(),pred.max(),50)
     out = [(
         accuracy_score(true, np.where(pred>t,1,0)),
-        precision_score(true, np.where(pred>t,1,0)),
+        precision_score(true, np.where(pred>t,1,0), zero_division=1),
         recall_score(true, np.where(pred>t,1,0)),
-        f1_score(true, np.where(pred>t,1,0))
-    ) for t in tresh]
-    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score'], index=tresh)
+        f1_score(true, np.where(pred>t,1,0)),
+        stats.chisquare(np.where(pred>t,1,0), true)[1]
+    ) for t in tresh[:-1]]
+    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', 'p-value'], index=tresh[:-1])
     return out
