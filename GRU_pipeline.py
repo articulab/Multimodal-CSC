@@ -562,7 +562,7 @@ class Pipeline():
             rd = simulate_randomness(true[:,i],pred[:,i])
             res = explore_tresh(true[:,i],pred[:,i])
 
-            f1.append((res['F1 score'].values - rd['Rd. F1 score'].values).mean())
+            f1.append((res['F1 score'].values - rd['Rd. F1 score'].values).max())
             if plot :
                 ax = res.plot(color =list(mcolors.TABLEAU_COLORS.values()) )#ax=ax[i][0])
                 rd.plot( ax=ax, linestyle='dashed',color =list(mcolors.TABLEAU_COLORS.values()))#ax=ax[i][0])
