@@ -286,6 +286,89 @@ def pad_collate(batch):
     }
     return output
 
+def pad_collate_multi_modal(batch):
+    """Pads and packs a batch of items from MultiModalDicDataset"""
+    of_f, os_f, e, t, of_l, os_l = [*zip(*batch)]
+
+    features_of = pack_padded_sequence(pad_sequence(of_f,batch_first=True), of_l, batch_first=True, enforce_sorted=False),
+    features_os = pack_padded_sequence(pad_sequence(os_f,batch_first=True), os_l, batch_first=True, enforce_sorted=False),
+    embeds      = torch.stack(e),
+    targets     = torch.stack(t)
+
+    output = {
+        'features': (embeds, features_of, features_os),
+        'targets' : targets
+    }
+    
+    return output
+
+#create dataset from dict, features_data, and targets_data
+class MultiModalDicDataset(Dataset):
+    """
+    dict has {index in targets_data : related indexes in features_data}
+    features_data is a tensor of openface or opensmile
+    targets_data is the tensor of targets (from embeds[feature_col])
+    """
+    def __init__(self, train_dic_openface, train_dic_opensmile, test_dic_openface, test_dic_opensmile, features_openface, features_opensmile, embeds, targets, valid_dic_openface=None, valid_dic_opensmile=None):
+        self.train_dic_openface, self.train_dic_opensmile = train_dic_openface, train_dic_opensmile
+        self.test_dic_openface, self.test_dic_opensmile = test_dic_openface, test_dic_opensmile
+        self.valid_dic_openface, self.valid_dic_opensmile = valid_dic_openface, valid_dic_opensmile
+        self.f_openface = features_openface
+        self.f_opensmile = features_opensmile
+        self.t = targets
+        self.e = embeds
+        self.keys_openface = [int(i) for i in train_dic_openface.keys()]
+        self.keys_opensmile = [int(i) for i in train_dic_opensmile.keys()]
+    
+    def __len__(self):
+        return len(self.train_dic_openface)
+
+    def __getitem__(self, idx):
+        features_indexes_openface = self.train_dic_openface[str(self.keys_openface[idx])]
+        features_indexes_opensmile = self.train_dic_opensmile[str(self.keys_opensmile[idx])]
+
+        features_openface = self.f_openface[features_indexes_openface, :]
+        features_opensmile = self.f_opensmile[features_indexes_opensmile, :]
+
+        targets = self.t[self.keys_openface[idx],:]
+        embeds = self.e[self.keys_openface[idx], :]
+        return features_openface, features_opensmile, embeds, targets, len(features_indexes_openface), len(features_indexes_opensmile)
+
+    def to(self, device):
+        self.f_openface  = self.f_openface.to(device)
+        self.f_opensmile = self.f_opensmile.to(device)
+        self.e = self.e.to(device)
+        self.t = self.t.to(device)
+        return None
+
+    def _get_test_item(self, idx):
+        of_features_indexes = self.test_dic_openface[str(idx)]
+        os_features_indexes = self.test_dic_opensmile[str(idx)]
+        openface_features = self.f_openface[of_features_indexes, :]
+        opensmile_features = self.f_opensmile[os_features_indexes, :]
+
+        return openface_features, opensmile_features, self.e[int(idx)], self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+
+    def get_test(self):
+        return pad_collate_multi_modal([self._get_test_item(idx) for idx in self.test_dic.keys()])
+
+    def get_train(self):
+        return pad_collate_multi_modal([self.__getitem__(idx) for idx in range(self.__len__())])
+
+    def _get_valid_item(self, idx):
+        of_features_indexes = self.valid_dic_openface[str(idx)]
+        os_features_indexes = self.valid_dic_opensmile[str(idx)]
+        openface_features = self.f_openface[of_features_indexes, :]
+        opensmile_features = self.f_opensmile[os_features_indexes, :]
+
+        return openface_features, opensmile_features, self.e[nt(idx)], self.t[int(idx),:], len(of_features_indexes), len(os_features_indexes)
+
+    def get_valid(self):
+        if not self.valid_dic:
+            print('No valid data')
+            raise
+        return pad_collate_multi_modal([self._get_valid_item(idx) for idx in self.valid_dic.keys()])
+
 class HierarchicalDataset(Dataset):
 
     def __init__(self, DH):
