@@ -155,20 +155,19 @@ class DataHolder():
         self._to_avoid = combinations[combinations.isin(to_avoid)].index
         return None
 
-    def stratified_train_test_split(self, feature = 'openface', speaker=1, test_size=.3,val_size=None, none_count=None, none_prop=.3):
-        output={
-            'targets':self.target_tensor
+    def stratified_train_test_split(self, speaker=1, test_size=.3,val_size=None, none_count=None, none_prop=.3):
+        
+        output_openface={
+            'features': self.openface_tensor[speaker],
+            'targets' : self.target_tensor
+        }
+        output_opensmile={
+            'features': self.opensmile_tensor[speaker],
+            'targets' : self.target_tensor
         }
 
-        if feature=='openface' :
-            dic = self.openface_dict[speaker]
-            output['features'] = self.openface_tensor[speaker]
-        elif feature=='opensmile' :
-            dic = self.opensmile_dict[speaker]
-            output['features'] = self.opensmile_tensor[speaker]
-        else:
-            print('Choose feature in ("openface","opensmile")')
-            raise
+        dic_openface = self.openface_dict[speaker]
+        dic_opensmile = self.opensmile_dict[speaker]
 
         #indexes of categories to stratify
         target_index = self.indexes[speaker]['target']
@@ -179,31 +178,33 @@ class DataHolder():
         df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
         class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
         train, test = train_test_split(df, test_size=test_size, stratify=df)
-        output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
+        output_openface['test_dic']   = {k:v for (k,v) in dic_openface.items() if int(k) in test.index.union(self._to_avoid)}
+        output_opensmile['test_dic']  = {k:v for (k,v) in dic_opensmile.items() if int(k) in test.index.union(self._to_avoid)}
 
         if val_size :
             train, valid = train_test_split(train, test_size=val_size, stratify=train)
             
-            output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
-            output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
-            return {'data' : output, 'class_weights':class_weights}
+            output_openface['train_dic']  = {k:v for (k,v) in dic_openface.items() if int(k) in train.index}
+            output_opensmile['train_dic'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in train.index}
+            output_openface['valid_dic']  = {k:v for (k,v) in dic_openface.items() if int(k) in valid.index}
+            output_opensmile['valid_dic'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in valid.index}
+            return {'openface' : output_openface,'opensmile' : output_opensmile, 'class_weights':class_weights}
         
-        output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
-        return {'data' : output, 'class_weights':class_weights}
+        output_openface['train_dic']  = {k:v for (k,v) in dic_openface.items() if int(k) in train.index}
+        output_opensmile['train_dic'] = {k:v for (k,v) in dic_opensmile.items() if int(k) in train.index}
+        return {'openface' : output_openface, 'opensmile' : output_opensmile, 'class_weights':class_weights}
 
     def make_train_test_datasets(self,test_size=.3,val_size=None, none_count=None, none_prop=.3):
 
-        tts_openface_1  = self.stratified_train_test_split(feature = 'openface', speaker=1, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
-        tts_openface_2  = self.stratified_train_test_split(feature = 'openface', speaker=2, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
-        tts_opensmile_1 = self.stratified_train_test_split(feature = 'opensmile', speaker=1, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
-        tts_opensmile_2 = self.stratified_train_test_split(feature = 'opensmile', speaker=2, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+        tts_1 = self.stratified_train_test_split(speaker=1, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
+        tts_2 = self.stratified_train_test_split(speaker=2, test_size=test_size,val_size=val_size, none_count=none_count, none_prop=none_prop)
 
-        openface_1  = dicDataset(**tts_openface_1['data'])
-        openface_2  = dicDataset(**tts_openface_2['data'])
-        opensmile_1 = dicDataset(**tts_opensmile_1['data'])
-        opensmile_2 = dicDataset(**tts_opensmile_2['data'])
+        openface_1  = dicDataset(**tts_1['openface'])
+        openface_2  = dicDataset(**tts_2['openface'])
+        opensmile_1 = dicDataset(**tts_1['opensmile'])
+        opensmile_2 = dicDataset(**tts_2['opensmile'])
 
-        class_weights = torch.stack((tts_openface_1['class_weights'], tts_openface_2['class_weights'],tts_opensmile_1['class_weights'], tts_opensmile_2['class_weights'])).mean(dim=0)
+        class_weights = torch.stack((tts_1['class_weights'], tts_2['class_weights'])).mean(dim=0)
 
         return {
             'datasets' : {'dyad_session_dict': self.dyad_session_dict, 'openface_1':openface_1, 'openface_2':openface_2, 'opensmile_1':opensmile_1, 'opensmile_2':opensmile_2},
@@ -450,34 +451,10 @@ class HierarchicalDataset(Dataset):
             return batch[0]
         return DataLoader(self, batch_size=1, collate_fn = collate_fn)
 
-class GRUModel(nn.Module):
-    def __init__(self, input_dim=17, hidden_dim=8, layer_dim=3, output_dim=5, dropout_prob=.1):
-        super(GRUModel, self).__init__()
-
-        self.gru = nn.GRU(
-            input_dim, hidden_dim, layer_dim, dropout=dropout_prob, batch_first = True
-        )
-
-        self.fc = nn.Linear(hidden_dim, output_dim)
-        self.s = nn.Sigmoid()
-
-    def forward(self, x_packed):
-
-        x, hidden = self.gru(x_packed)
-
-        x,l = pad_packed_sequence(x, batch_first=True)
-
-        out = torch.stack([x[i][l[i]-1] for i in range(x.shape[0])])
-
-        out = self.fc(out)
-        out = self.s(out)
-
-        return out
-
 class Pipeline():
-    def __init__(self, model, features_1, features_2, criterion, cats=['SD', 'QE', 'SV', 'PR', 'HD']):
+    def __init__(self, model, features_1, features_2, class_weights, cats=['SD', 'QE', 'SV', 'PR', 'HD']):
         self.datasets = {1 : features_1, 2 : features_2}
-        self.criterion = criterion
+        self.criterion = nn.BCEWithLogitsLoss(weight=class_weights)
         self.model = model
         self.hist_train_loss = None
         self.hist_test_loss = None
@@ -570,11 +547,13 @@ class Pipeline():
                     param.grad = None
                 loss2.backward()
                 optimizer.step()
+
+            epoch_loss = epoch_loss / ( len(self.datasets[1]) + len(self.datasets[2]) )
             
             if e%(epoch//5)==0:
                 print(f"loss epoch {e}: {epoch_loss:2f}")
         
-            self.hist_train_loss.append(( (loss1+loss2) / ( len(self.datasets[1]) + len(self.datasets[2] ) ) ).cpu().detach().numpy())
+            self.hist_train_loss.append( epoch_loss.cpu().detach().numpy() )
 
             eval_loss = ( self.eval_on_batch(eval1) + self.eval_on_batch(eval2) ) / ( len(eval1) + len(eval2) )
 
@@ -612,7 +591,7 @@ class Pipeline():
         ax[2].plot(self.hist_test_loss)
         ax[2].set_title('Test')
         pd.DataFrame(self.hist_auf1c, columns=self.cats).plot(ax=ax[3])
-        ax[3].set_title('Area under f1 score')
+        ax[3].set_title('max diff f1 score')
         plt.show()
         return None
     
