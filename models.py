@@ -619,44 +619,6 @@ class BertLSTMConcat(torch.nn.Module):
         return output
 
 
-class BertClassif(torch.nn.Module):
-    """
-    This model is a bi-modal classifier using a bilinear fusion layer for the two modalities.
-    Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
-    """
-
-    def __init__(self):
-        super(BertClassif, self).__init__()
-
-        # Define the Bert pipeline
-        self.bert_layer = DistilBertModel.from_pretrained("bert-base-uncased")
-        self.bert_dense = torch.nn.Linear(768, 768)
-        self.dropout = torch.nn.Dropout(0.25)
-        self.class_num = 5
-        # Define the classifier
-        self.classifier = torch.nn.Linear(768, 6)
-
-    def forward(self, input_ids, attention_mask):
-
-        input_ids = torch.reshape(input_ids, (-1, 128))
-        attention_mask = torch.reshape(attention_mask, (-1, 128))
-
-        # Forward pass of the toplkenized text
-        hidden_state1 = self.bert_layer(
-            input_ids=input_ids, attention_mask=attention_mask
-        )[0]
-        pooler1 = hidden_state1[:, 0]
-
-        pooler1 = self.bert_dense(pooler1)
-        pooler1 = torch.nn.ReLU()(pooler1)
-        pooler1 = self.dropout(pooler1)
-
-        # Classification of the fusion
-        output = self.classifier(pooler1)
-
-        return output
-
-
 class GRUClassif3(torch.nn.Module):
     """
     This model is a bi-modal classifier using a bilinear fusion layer for the two modalities.
@@ -831,7 +793,6 @@ class VideoGRU(torch.nn.Module):
         return out
 
 
-
 class GRUMultiModal(torch.nn.Module):
     def __init__(self, embeddings_dim = 768, audio_input_dim = 17, audio_hidden_dim=32, audio_layer_dim=2, video_input_dim=17, video_hidden_dim=32, video_layer_dim=2, output_dim=6, dropout_prob=.1):
         super(GRUMultiModal, self).__init__()
@@ -953,4 +914,37 @@ class GRUBiModal(torch.nn.Module):
         out = self.classifier(cat)
         out = self.sigmoid(out)
 
+        return out
+
+
+class BertClassif(torch.nn.Module):
+    """
+    This model is a bi-modal classifier using a bilinear fusion layer for the two modalities.
+    Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
+    """
+
+    def __init__(self):
+        super(BertClassif, self).__init__()
+
+        # Define the Bert pipeline
+        self.embeds_fc1 = torch.nn.Linear(768, 768)
+        self.embeds_fc2 = torch.nn.Linear(768, 768 // 2)
+        self.classifier = torch.nn.Linear(768 // 2, 6) # 6
+
+        self.dropout = torch.nn.Dropout(0.25)
+        self.class_num = 6
+        self.ReLU = torch.nn.LeakyReLU(.1)
+        self.sigmoid = torch.nn.Sigmoid()
+        # Define the classifier
+
+    def forward(self, embeddings):
+
+        embeds_x = self.embeds_fc1(embeddings)
+        embeds_x = self.ReLU(embeds_x)
+
+        embeds_x = self.embeds_fc2(embeds_x)
+        embeds_out = self.ReLU(embeds_x)
+
+        out = self.classifier(embeds_out)
+        out = self.sigmoid(out)
         return out
