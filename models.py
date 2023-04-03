@@ -986,6 +986,11 @@ class EmbedsModel(nn.Module):
             X = self.activation(self.dropout(layer(X)))
         X = self.last_layer(X)
         return X
+    
+    def last_hidden_forward(self, X):
+        for layer in self.fc_layers:
+            X = self.activation(self.dropout(layer(X)))
+        return X
 class MultiModalModel(torch.nn.Module):
     def __init__(self, textual_model=None, video_model=None, audio_model=None):
         super(MultiModalModel, self).__init__()

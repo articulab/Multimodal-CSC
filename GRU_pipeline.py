@@ -647,7 +647,6 @@ def simulate_randomness(true, pred):
     return out
 
 def explore_tresh(true, pred):
-    prop=true.sum()/true.shape[0]
     tresh = np.linspace(pred.min(),pred.max(),20)
     out = [(
         accuracy_score(true, np.where(pred>t,1,0)),
@@ -656,6 +655,6 @@ def explore_tresh(true, pred):
         f1_score(true, np.where(pred>t,1,0)),
         chi2( np.where(pred>t,1,0).reshape(-1,1) , true )[1][0]
     ) for t in tresh[:-1]]
-    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', '- .5 log p-value'], index=tresh[:-1])
-    out['- .5 log p-value'] = - np.log10(out['- .5 log p-value']) / 2
+    out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', '- .2 log p-value'], index=tresh[:-1])
+    out['- .2 log p-value'] = - np.log10(out['- .2 log p-value']) / 5
     return out
