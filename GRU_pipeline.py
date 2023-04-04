@@ -9,6 +9,12 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pack_padded_sequence, pad_sequence, pad_packed_sequence
+import torch.nn.functional as F
+from tqdm import tqdm
+
+SEED = 42
+
+random.seed(SEED)
 
 ## -- paths -- ##
 paths = {
@@ -50,12 +56,16 @@ class DataHolder():
         none_as_class = False
     ):
         #import embeds
+        random.seed(SEED)
         self.embeds = pd.read_feather(path_to_embeds)
+        self.none_as_class = none_as_class
         if none_as_class:
             self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD', "N"]
             self.embeds["N"] = (1 - self.embeds[['SD', 'QE', 'SV', 'PR', 'HD']].sum(axis = 1)).replace(-1, 0)
+            self.embeds_col = self.embeds.iloc[:, 13:].columns
         else:
             self.target_col = ['SD', 'QE', 'SV', 'PR', 'HD']
+            self.embeds_col = self.embeds.iloc[:, 12:].columns
         
         #import openface data
         self.openface={}
@@ -89,7 +99,7 @@ class DataHolder():
         #create useful params
         self.openface_col = self.openface[1].iloc[:,3:].columns
         self.opensmile_col = self.opensmile[1].iloc[:,3:].columns
-        self.embeds_col = self.embeds.iloc[:, 13:].columns
+        # self.embeds_col = self.embeds.iloc[:, 13:].columns
         self.class_weights = self.embeds[self.target_col].sum() / self.embeds.shape[0]
         self.openface_tensor = {
             1:torch.from_numpy(self.openface[1][self.openface_col].values).to(torch.float32),
@@ -121,10 +131,14 @@ class DataHolder():
         self.indexes={}
         for cat in self.target_col:
             self.indexes[cat] = df.loc[df[cat]==1].index
-        self.indexes['none'] = df[df["N"] == 1].index
-        self.indexes['target'] = df.index.difference(self.indexes['none'])
-
-        names = ['SD', 'QE', 'SV', 'PR', 'HD', 'N', 'target', 'none']
+        if self.none_as_class:
+            names = ['SD', 'QE', 'SV', 'PR', 'HD', 'N', 'target', 'none']
+            self.indexes['none'] = df[df["N"] == 1].index
+            self.indexes['target'] = df.index.difference(self.indexes['none'])
+        else:
+            self.indexes['target'] = df.loc[df.sum(axis=1)>0].index
+            self.indexes['none'] = df.index.difference(self.indexes['target'])
+            names = ['SD', 'QE', 'SV', 'PR', 'HD', 'target', 'none']
 
         self.indexes[1]={}
         self.indexes[2]={}
@@ -168,12 +182,12 @@ class DataHolder():
             #constitute df to stratify
             df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
             class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
-            train, test = train_test_split(df, test_size=test_size, stratify=df)
+            train, test = train_test_split(df, test_size=test_size, stratify=df, random_state = SEED)
 
             output['test_dic_openface']  = {k:v for (k,v) in dic_openface.items() if int(k) in test.index.union(self._to_avoid)}
             output['test_dic_opensmile']  = {k:v for (k,v) in dic_opensmile.items() if int(k) in test.index.union(self._to_avoid)}
             if val_size :
-                train, valid = train_test_split(train, test_size = val_size, stratify=train)
+                train, valid = train_test_split(train, test_size = val_size, stratify=train, random_state = SEED)
                 
                 output['train_dic_openface'] = {k:v for (k,v) in dic_openface.items() if int(k) in train.index}
                 output['valid_dic_openface'] = {k:v for (k,v) in dic_openface.items() if int(k) in valid.index}
@@ -204,11 +218,11 @@ class DataHolder():
             #constitute df to stratify
             df = self.embeds[self.target_col].loc[target_index.union(none_index).difference(self._to_avoid)]
             class_weights = torch.Tensor((df.sum()/df.shape[0]).values)
-            train, test = train_test_split(df, test_size=test_size, stratify=df)
+            train, test = train_test_split(df, test_size=test_size, stratify=df, random_state = SEED)
             output['test_dic']  = {k:v for (k,v) in dic.items() if int(k) in test.index.union(self._to_avoid)}
 
             if val_size :
-                train, valid = train_test_split(train, test_size = val_size, stratify=train)
+                train, valid = train_test_split(train, test_size = val_size, stratify=train, random_state = SEED)
                 
                 output['train_dic'] = {k:v for (k,v) in dic.items() if int(k) in train.index}
                 output['valid_dic'] = {k:v for (k,v) in dic.items() if int(k) in valid.index}
@@ -369,3 +383,218 @@ class GRUModel(nn.Module):
         out = self.s(out)
 
         return out
+
+def eval_on_val(model, val_loader_1, val_loader_2, criterion, modality = None):
+    if model.__class__.__name__ == "GRUMultiModal":
+        model.eval()
+        tot_loss=0.0
+        for i, batch in enumerate(val_loader_1):
+            features_of, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+            with torch.no_grad():
+                pred = model(embeds, features_os, features_of)
+                loss = criterion(pred, targets)
+                tot_loss += loss / pred.shape[0]
+        for i, batch in enumerate(val_loader_2):
+            features_of, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+            with torch.no_grad():
+                pred = model(embeds, features_os, features_of)
+                loss = criterion(pred, targets)
+                tot_loss += loss / pred.shape[0]
+        return (tot_loss / (len(val_loader_1) + len(val_loader_2)))
+    elif model.__class__.__name__ == "BertClassif":
+        model.eval()
+        tot_loss=0.0
+        for i, batch in enumerate(val_loader_1):
+            embeds, targets = batch['embeds'], batch['targets']
+            with torch.no_grad():
+                pred = model(embeds)
+                loss = criterion(pred, targets)
+                tot_loss += loss / pred.shape[0]
+        for i, batch in enumerate(val_loader_2):
+            embeds, targets = batch['embeds'], batch['targets']
+            with torch.no_grad():
+                pred = model(embeds)
+                loss = criterion(pred, targets)
+                tot_loss += loss / pred.shape[0]
+        return (tot_loss / (len(val_loader_1) + len(val_loader_2)))
+    elif model.__class__.__name__ == "GRUBiModal":
+        tot_loss=0.0
+        if modality == "audio":
+            model.eval()
+            for i, batch in enumerate(val_loader_1):
+                _, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                with torch.no_grad():
+                    pred = model(embeds, features_os)
+                    loss = criterion(pred, targets)
+                    tot_loss += loss / pred.shape[0]
+            for i, batch in enumerate(val_loader_2):
+                _, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                with torch.no_grad():
+                    pred = model(embeds, features_os)
+                    loss = criterion(pred, targets)
+                    tot_loss += loss / pred.shape[0]
+            return (tot_loss / (len(val_loader_1) + len(val_loader_2)))
+        elif modality == "video":
+            model.eval()
+            for i, batch in enumerate(val_loader_1):
+                features_of, _, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                with torch.no_grad():
+                    pred = model(embeds, features_of)
+                    loss = criterion(pred, targets)
+                    tot_loss += loss / pred.shape[0]
+            for i, batch in enumerate(val_loader_2):
+                features_of, _, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                with torch.no_grad():
+                    pred = model(embeds, features_of)
+                    loss = criterion(pred, targets)
+                    tot_loss += loss / pred.shape[0]
+            return (tot_loss / (len(val_loader_1) + len(val_loader_2)))
+
+
+def train_one_epoch(epoch, model, criterion, dataloader_1, dataloader_2, val_loader_1, val_loader_2, hist_train_loss, hist_val_loss, stagnation, best_vloss, opt = None, modality = None, save_dir = ""):
+    if not (opt is None):
+        optimizer = opt
+    if model.__class__.__name__ == "GRUMultiModal":
+        model.train(True)
+
+        epoch_loss = 0.0
+        for i, batch in enumerate(dataloader_1):
+            features_of, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+            pred = model(embeds, features_os, features_of)
+            loss = criterion(pred, targets)
+
+            epoch_loss += loss / pred.shape[0]
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        for i, batch in enumerate(dataloader_2):
+            features_of, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+            pred = model(embeds, features_os, features_of)
+            loss = criterion(pred, targets)
+
+            epoch_loss += loss / pred.shape[0]
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        epoch_loss = epoch_loss / (len(dataloader_1) + len(dataloader_2))
+        hist_train_loss = hist_train_loss + [epoch_loss]
+        model.train(False)
+        val_loss = eval_on_val(model, val_loader_1, val_loader_2, criterion)
+        hist_val_loss = hist_val_loss + [val_loss]
+        if epoch % 30 == 0:
+            stagnation += 1
+            print("EPOCH {}:".format(epoch + 1))
+            tqdm.write(f"================\nTraining epoch {epoch} :\nTrain loss = {1000 * epoch_loss}, Val loss = {1000 * val_loss}\n================")
+            if val_loss < best_vloss:
+                best_vloss = val_loss
+                torch.save(model.state_dict(), save_dir + "MultiModalBert")
+                stagnation = 0
+        return hist_train_loss, hist_val_loss, stagnation, best_vloss
+        
+    elif model.__class__.__name__ == "BertClassif":
+        model.train(True)
+
+        epoch_loss = 0.0
+
+        for i, batch in enumerate(dataloader_1):
+            embeds, targets = batch['embeds'], batch['targets']
+            pred = model(embeds)
+            loss = criterion(pred, targets)
+
+            epoch_loss += loss / pred.shape[0]
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        for i, batch in enumerate(dataloader_2):
+            embeds, targets = batch['embeds'], batch['targets']
+            pred = model(embeds)
+            loss = criterion(pred, targets)
+
+            epoch_loss += loss / pred.shape[0]
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+        epoch_loss = epoch_loss / (len(dataloader_1) + len(dataloader_2))
+        hist_train_loss = hist_train_loss + [epoch_loss]
+        model.train(False)
+        val_loss = eval_on_val(model, val_loader_1, val_loader_2, criterion)
+        hist_val_loss = hist_val_loss + [val_loss]
+        if epoch % 30 == 0:
+            stagnation += 1
+            print("EPOCH {}:".format(epoch + 1))
+            tqdm.write(f"================\nTraining epoch {epoch} :\nTrain loss = {1000 * epoch_loss:.4f}, Val loss = {1000 * val_loss:.4f}\n================")
+            if val_loss < best_vloss:
+                best_vloss = val_loss
+                torch.save(model.state_dict(), save_dir + "BertClassif")
+                stagnation = 0
+        return hist_train_loss, hist_val_loss, stagnation, best_vloss
+    elif model.__class__.__name__ == "GRUBiModal":
+        model.train(True)
+        epoch_loss = 0.0
+        if modality == "video":
+            for i, batch in enumerate(dataloader_1):
+                features_of, _, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                pred = model(embeds, features_of)
+                loss = criterion(pred, targets)
+
+                epoch_loss += loss / pred.shape[0]
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            for i, batch in enumerate(dataloader_2):
+                features_of, _, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                pred = model(embeds, features_of)
+                loss = criterion(pred, targets)
+
+                epoch_loss += loss / pred.shape[0]
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+        elif modality == "audio":
+            for i, batch in enumerate(dataloader_1):
+                _, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                pred = model(embeds, features_os)
+                loss = criterion(pred, targets)
+
+                epoch_loss += loss / pred.shape[0]
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            for i, batch in enumerate(dataloader_2):
+                _, features_os, embeds, targets = batch['features_of'], batch['features_os'], batch['embeds'], batch['targets']
+                pred = model(embeds, features_os)
+                loss = criterion(pred, targets)
+
+                epoch_loss += loss / pred.shape[0]
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+        epoch_loss = epoch_loss / (len(dataloader_1) + len(dataloader_2))
+        hist_train_loss = hist_train_loss + [epoch_loss]
+        model.train(False)
+        val_loss = eval_on_val(model, val_loader_1, val_loader_2, criterion, modality)
+        hist_val_loss = hist_val_loss + [val_loss]
+        if epoch % 30 == 0:
+            stagnation += 1
+            print("EPOCH {}:".format(epoch + 1))
+            tqdm.write(f"================\nTraining epoch {epoch} :\nTrain loss = {1000 * epoch_loss}, Val loss = {1000 * val_loss}\n================")
+            if val_loss < best_vloss:
+                best_vloss = val_loss
+                torch.save(model.state_dict(), save_dir + f"Bert{modality}Bimodal")
+                stagnation = 0
+        return hist_train_loss, hist_val_loss, stagnation, best_vloss
