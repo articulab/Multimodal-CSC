@@ -794,7 +794,7 @@ class VideoGRU(torch.nn.Module):
 
 
 class GRUMultiModal(torch.nn.Module):
-    def __init__(self, embeddings_dim = 768, audio_input_dim = 17, audio_hidden_dim=32, audio_layer_dim=2, video_input_dim=17, video_hidden_dim=32, video_layer_dim=2, output_dim=6, dropout_prob=.1):
+    def __init__(self, embeddings_dim = 768, audio_input_dim = 17, audio_hidden_dim=32, audio_layer_dim=2, video_input_dim=17, video_hidden_dim=32, video_layer_dim=2, output_dim=6, dropout_prob=.1, activation = "sigmoid"):
         super(GRUMultiModal, self).__init__()
         self.dropout = torch.nn.Dropout(dropout_prob)
         self.class_num = 6
@@ -827,7 +827,10 @@ class GRUMultiModal(torch.nn.Module):
 
 
         self.ReLU = torch.nn.LeakyReLU(.1)
-        self.sigmoid = torch.nn.Sigmoid()
+        if activation == "sigmoid":
+            self.activation = torch.nn.Sigmoid()
+        elif activation == "softmax":
+            self.activation = torch.nn.Softmax()
         # Do not make a class for the "None" class
         self.classifier = torch.nn.Linear(embeddings_dim // 2 + audio_hidden_dim + video_hidden_dim, output_dim) # 6
 
@@ -858,13 +861,13 @@ class GRUMultiModal(torch.nn.Module):
 
         cat = self.ReLU(cat)
         out = self.classifier(cat)
-        out = self.sigmoid(out)
+        out = self.activation(out)
 
         return out
 
 
 class GRUBiModal(torch.nn.Module):
-    def __init__(self, embeddings_dim = 768, input_dim=17, hidden_dim=32, layer_dim=2, output_dim=6, dropout_prob=.1):
+    def __init__(self, embeddings_dim = 768, input_dim=17, hidden_dim=32, layer_dim=2, output_dim=6, dropout_prob=.1, activation = "sigmoid"):
         super(GRUBiModal, self).__init__()
         self.dropout = torch.nn.Dropout(dropout_prob)
         self.class_num = 6
@@ -886,7 +889,10 @@ class GRUBiModal(torch.nn.Module):
 
 
         self.ReLU = torch.nn.LeakyReLU(.1)
-        self.sigmoid = torch.nn.Sigmoid()
+        if activation == "sigmoid":
+            self.activation = torch.nn.Sigmoid()
+        elif activation == "softmax":
+            self.activation = torch.nn.Softmax()
         # Do not make a class for the "None" class
         self.classifier = torch.nn.Linear(embeddings_dim // 2 + hidden_dim, output_dim) # 6
 
@@ -912,10 +918,9 @@ class GRUBiModal(torch.nn.Module):
 
         cat = self.ReLU(cat)
         out = self.classifier(cat)
-        out = self.sigmoid(out)
+        out = self.activation(out)
 
         return out
-
 
 class BertClassif(torch.nn.Module):
     """
@@ -923,18 +928,21 @@ class BertClassif(torch.nn.Module):
     Text is embedded through pre-trained BERT, Action Units are embedded through two dense layers.
     """
 
-    def __init__(self):
+    def __init__(self, embeddings_dim, hidden_dim, output_dim, activation = "sigmoid"):
         super(BertClassif, self).__init__()
 
         # Define the Bert pipeline
-        self.embeds_fc1 = torch.nn.Linear(768, 768)
-        self.embeds_fc2 = torch.nn.Linear(768, 768 // 2)
-        self.classifier = torch.nn.Linear(768 // 2, 6) # 6
+        self.embeds_fc1 = torch.nn.Linear(embeddings_dim, hidden_dim)
+        self.embeds_fc2 = torch.nn.Linear(hidden_dim, hidden_dim // 2)
+        self.classifier = torch.nn.Linear(hidden_dim // 2, output_dim) # 6
 
         self.dropout = torch.nn.Dropout(0.25)
         self.class_num = 6
         self.ReLU = torch.nn.LeakyReLU(.1)
-        self.sigmoid = torch.nn.Sigmoid()
+        if activation == "sigmoid":
+            self.activation = torch.nn.Sigmoid()
+        elif activation == "softmax":
+            self.activation = torch.nn.Softmax()
         # Define the classifier
 
     def forward(self, embeddings):
@@ -946,5 +954,5 @@ class BertClassif(torch.nn.Module):
         embeds_out = self.ReLU(embeds_x)
 
         out = self.classifier(embeds_out)
-        out = self.sigmoid(out)
+        out = self.activation(out)
         return out
