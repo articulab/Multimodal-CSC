@@ -634,7 +634,7 @@ class Pipeline():
         return f1
 
 def simulate_randomness(true, pred):
-    tresh = np.linspace(pred.min(),pred.max(),20)
+    tresh = np.linspace(pred.min(),pred.max(),50)
     p=true.sum()/true.shape[0]
     func = lambda t : np.where(pred > t,1,0).mean()
     out = [(
@@ -653,7 +653,7 @@ def explore_tresh(true, pred):
         precision_score(true, np.where(pred>t,1,0), zero_division=1),
         recall_score(true, np.where(pred>t,1,0)),
         f1_score(true, np.where(pred>t,1,0)),
-        chi2( np.where(pred>t,1,0).reshape(-1,1) , true )[1][0]
+        .05 * chi2( np.where(pred>t,1,0).reshape(-1,1) , true )[1][0]
     ) for t in tresh[:-1]]
     out = pd.DataFrame(out, columns=['Accuracy', 'Precision', 'Recall', 'F1 score', '- .2 log p-value'], index=tresh[:-1])
     out['- .2 log p-value'] = - np.log10(out['- .2 log p-value']) / 5
